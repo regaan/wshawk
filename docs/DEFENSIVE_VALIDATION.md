@@ -453,7 +453,7 @@ To add new defensive tests:
 
 ## License
 
-MIT License - See LICENSE file for details
+AGPL-3.0 License - See LICENSE file for details
 
 ---
 
