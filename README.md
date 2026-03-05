@@ -2,13 +2,13 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/wshawk.svg)](https://badge.fury.io/py/wshawk)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Playwright](https://img.shields.io/badge/Playwright-Supported-green.svg)](https://playwright.dev/)
 [![Status: Production](https://img.shields.io/badge/status-production-green.svg)](https://github.com/noobforanonymous/wshawk)
 
 **WSHawk** is an enterprise-grade, open-source WebSocket security scanner built for professional penetration testers, security engineers, bug bounty hunters, and red teams. It performs automated vulnerability assessment over WebSocket connections — detecting SQL injection, XSS, command injection, XXE, SSRF, NoSQL injection, and path traversal — using an adaptive **Smart Payload Evolution (SPE)** engine with real-time feedback loops, genetic payload mutation, and intelligent WAF bypass capabilities.
 
-Starting with v3.0.3, we've integrated a **Headless DOM Invader** powered by Playwright for real browser-based XSS verification and complex SSO auth flow recording/replay. Also includes a **Context-Aware Heuristic Engine** and **WSHawk Browser Companion** for seamless handshake interception.
+Starting with v3.0.4, we've transitioned to the **AGPL-3.0 license** to better protect the project while keeping it open for the community. This release includes the **Headless DOM Invader** powered by Playwright for real browser-based XSS verification and complex SSO auth flow recording/replay. Also includes a **Context-Aware Heuristic Engine** and **WSHawk Browser Companion** for seamless handshake interception.
 
 > [!IMPORTANT]
 > **Full Documentation:**
@@ -326,7 +326,7 @@ See [Defensive Validation Guide](docs/DEFENSIVE_VALIDATION.md).
 
 | Guide | Description |
 |---|---|
-| **[V3.0.3 Release Guide](docs/V3.0.3_RELEASE_GUIDE.md)** | DOM Invader, Auth Flow Recorder, AI Exploit Engine — full technical reference |
+| **[V3.0.4 Release Guide](docs/V3.0.4_RELEASE_GUIDE.md)** | AGPL-3.0 Transition, DOM Invader, Auth Flow Recorder — full technical reference |
 | **[🦅 Complete Enterprise Guide](docs/V3_COMPLETE_GUIDE.md)** | Architecture, scanning engine, configuration, integrations |
 | **[💻 Desktop Reference Manual](docs/DESKTOP_V3_GUIDE.md)** | All 22 tools, API reference, build instructions |
 | [Getting Started](docs/getting_started.md) | First scan, output format, common use cases |
@@ -345,7 +345,7 @@ The author is not responsible for misuse of this tool. Repackaged versions found
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+AGPL-3.0 License — see [LICENSE](LICENSE)
 
 ## Author
 
@@ -365,7 +365,7 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**WSHawk v3.0.3** — Professional WebSocket Security Scanner & Interception Suite
+**WSHawk v3.0.4** — Professional WebSocket Security Scanner & Interception Suite
 
 ---
 

@@ -21,7 +21,7 @@ requirements = [
 
 setup(
     name="wshawk",
-    version="3.0.2",
+    version="3.0.4",
     author="Regaan",
     description="Professional WebSocket security scanner with real vulnerability verification, session hijacking tests, and CVSS scoring",
     long_description=long_description,
@@ -33,7 +33,7 @@ setup(
         "Intended Audience :: Information Technology",
         "Intended Audience :: Developers",
         "Topic :: Security",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU Affero General Public License v3",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",

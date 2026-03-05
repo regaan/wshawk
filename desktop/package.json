@@ -1,6 +1,6 @@
 {
   "name": "wshawk",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "WSHawk - Advanced WebSocket Security Scanner",
   "homepage": "https://github.com/noobforanonymous/wshawk",
   "repository": {
@@ -21,7 +21,7 @@
     "vulnerability"
   ],
   "author": "Regaan <regaan@rothackers.com> (https://wshawk.rothackers.com)",
-  "license": "ISC",
+  "license": "AGPL-3.0",
   "type": "commonjs",
   "devDependencies": {
     "electron": "^40.6.0",

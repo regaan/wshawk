@@ -1,6 +1,12 @@
-# Changelog
-
 All notable changes to WSHawk will be documented in this file.
+
+## [3.0.4] - 2026-03-05
+
+### Changed
+- **License Transition** — Migrated project from MIT to **AGPL-3.0** to ensure open-source longevity and protect intellectual property for Rot Hackers.
+- **Unified Branding** — Synchronized versioning and legal metadata across all interfaces (CLI, Web, Desktop).
+- **Metadata Refresh** — Updated PyPI, Debian, and Arch Linux package specs for the new license and version.
+
 
 ## [3.0.3] - 2026-03-01
 

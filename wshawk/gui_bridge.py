@@ -73,7 +73,7 @@ async def connect(sid, environ):
     print(f"[*] Frontend connected: {sid}")
     await sio.emit('system_info', {
         'os': sys.platform,
-        'version': '3.0.1',
+        'version': '3.0.4',
         'status': 'ready'
     }, room=sid)
 

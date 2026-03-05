@@ -5,8 +5,8 @@ authors:
   given-names: "Regaan"
   alias: "noobforanonymous"
 title: "WSHawk"
-version: 3.0.3
-date-released: 2026-03-01
+version: 3.0.4
+date-released: 2026-03-05
 url: "https://github.com/noobforanonymous/wshawk"
 repository-code: "https://github.com/noobforanonymous/wshawk"
 keywords:
@@ -15,4 +15,4 @@ keywords:
   - scanner
   - penetration-testing
   - vulnerability-scanning
-license: MIT
+license: AGPL-3.0
