@@ -19,7 +19,8 @@
  <a href="https://pepy.tech/project/wshawk">
    <img src="https://img.shields.io/pepy/dt/wshawk?style=for-the-badge&logo=pypi&logoColor=white&label=PyPI%20Downloads&color=blue" alt="PyPI Downloads">
  </a>
-</p>
+</p
+  
 **WSHawk** is an enterprise-grade, open-source WebSocket security scanner built for professional penetration testers and red teams. It performs automated vulnerability assessment over WebSocket connections using an adaptive **Smart Payload Evolution (SPE)** engine with real-time feedback loops and genetic payload mutation. Designed for high-performance environments at the **ROT Independent Security Research Lab**.
 
 Starting with v3.0.4, we've transitioned to the **AGPL-3.0 license** to better protect the project while keeping it open for the community. This release includes the **Headless DOM Invader** powered by Playwright for real browser-based XSS verification and complex SSO auth flow recording/replay. Also includes a **Context-Aware Heuristic Engine** and **WSHawk Browser Companion** for seamless handshake interception.
