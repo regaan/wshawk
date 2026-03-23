@@ -600,6 +600,8 @@ async def run_scan_task(scan_id: str):
         # Run the actual heuristic scan
         # This will now trigger scanner_event_callback for every finding
         vulns = await state.scanner.run_heuristic_scan()
+        if vulns is None:
+            vulns = []
         
         await sio.emit('scan_update', {
             'id': scan_id, 
