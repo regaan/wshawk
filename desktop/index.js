@@ -104,7 +104,18 @@ function startPythonSidecar() {
     }
 
     pythonProcess.stdout.on('data', (data) => {
-        console.log(`[Python] ${data}`);
+        const text = data.toString();
+        console.log(`[Python] ${text}`);
+
+        // Parse the actual port the bridge chose (may differ from 8080 if taken)
+        const portMatch = text.match(/\[BRIDGE_PORT\]\s*(\d+)/);
+        if (portMatch) {
+            const actualPort = parseInt(portMatch[1], 10);
+            console.log(`[Main] Bridge is listening on port ${actualPort}`);
+            if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+                mainWindow.webContents.send('bridge-port', actualPort);
+            }
+        }
     });
 
     pythonProcess.stderr.on('data', (data) => {

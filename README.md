@@ -10,7 +10,7 @@
 
 **WSHawk** is an enterprise-grade, open-source WebSocket security scanner built for professional penetration testers and red teams. It performs automated vulnerability assessment over WebSocket connections using an adaptive **Smart Payload Evolution (SPE)** engine with real-time feedback loops and genetic payload mutation. Designed for high-performance environments at the **ROT Independent Security Research Lab**.
 
-Starting with v3.0.5, we've transitioned to the **AGPL-3.0 license** to better protect the project while keeping it open for the community. This release includes the **Headless DOM Invader** powered by Playwright for real browser-based XSS verification and complex SSO auth flow recording/replay. Also includes a **Context-Aware Heuristic Engine** and **WSHawk Browser Companion** for seamless handshake interception.
+Starting with v3.0.6, we've transitioned to the **AGPL-3.0 license** to better protect the project while keeping it open for the community. This release includes the **Headless DOM Invader** powered by Playwright for real browser-based XSS verification and complex SSO auth flow recording/replay. Also includes a **Context-Aware Heuristic Engine** and **WSHawk Browser Companion** for seamless handshake interception.
 
 > [!IMPORTANT]
 > **Full Documentation:**
@@ -375,11 +375,11 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**WSHawk v3.0.5** — Professional WebSocket Security Scanner & Interception Suite
+**WSHawk v3.0.6** — Professional WebSocket Security Scanner & Interception Suite
 
 ---
 
-### Latest Updates (v3.0.5)
+### Latest Updates (v3.0.6)
 - **DOM Invader**: Headless Playwright engine verifies XSS payloads in a real browser — zero false positives. Confirms `alert()`, `eval()`, DOM mutations, and injected script tags.
 - **Auth Flow Recorder**: Records complex SSO/OAuth login flows in a visible browser, then replays them headlessly to mint fresh tokens during long fuzzing runs.
 - **Auto Session Reconnect**: Payload Blaster detects session expiry and automatically replays the recorded auth flow to reconnect — no manual intervention needed.

@@ -41,7 +41,7 @@ class Logger:
 ║║║╚═╗╠═╣╠═╣║║║╠╩╗
 ╚╩╝╚═╝╩ ╩╩ ╩╚╩╝╩ ╩
 {Colors.END}
-{Colors.YELLOW}WebSocket Security Scanner V3.0.5{Colors.END}
+{Colors.YELLOW}WebSocket Security Scanner V3.0.6{Colors.END}
 {Colors.CYAN}Created by: Regaan (@regaan){Colors.END}
 {Colors.BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
 """
@@ -54,7 +54,7 @@ class Logger:
  |    |  |  |__| |__| |    | |_/
  |_/|_|  |  |  | |  | |_/|_| | \\_
 {Colors.END}
-{Colors.YELLOW}WebSocket Security Scanner V3.0.5{Colors.END}
+{Colors.YELLOW}WebSocket Security Scanner V3.0.6{Colors.END}
 {Colors.CYAN}Created by: Regaan (@regaan){Colors.END}
 {Colors.BLUE}========================================{Colors.END}
 """

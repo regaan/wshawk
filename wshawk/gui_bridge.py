@@ -11,6 +11,17 @@ import asyncio
 import json
 import os
 import sys
+
+# ── Windows UTF-8 fix ─────────────────────────────────────────────────
+# MUST be at the very top, before any print() or logging that could
+# output Unicode box-drawing chars (U+2566 etc.) and crash cp1252.
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+# ─────────────────────────────────────────────────────────────────────
 import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -1856,10 +1867,29 @@ async def sio_team_scan_event(sid, data):
 # Server Entry Point
 # ─────────────────────────────────────────────────────────────────────
 
+def _find_free_port(start: int, attempts: int = 10) -> int:
+    """Find a free TCP port starting from `start`."""
+    import socket
+    for offset in range(attempts):
+        p = start + offset
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(('127.0.0.1', p))
+                return p
+            except OSError:
+                continue
+    return start  # fallback — uvicorn will give a proper error
+
+
 def main():
     """Start the WSHawk GUI Bridge server."""
-    port = int(os.environ.get("WSHAWK_BRIDGE_PORT", 8080))
-    print(f"[*] Starting WSHawk GUI Bridge on port {port}...")
+    requested_port = int(os.environ.get("WSHAWK_BRIDGE_PORT", 8080))
+    port = _find_free_port(requested_port)
+    if port != requested_port:
+        print(f"[!] Port {requested_port} in use — using port {port} instead", flush=True)
+    # Emit the chosen port on a dedicated line so Electron can read it
+    print(f"[BRIDGE_PORT] {port}", flush=True)
+    print(f"[*] Starting WSHawk GUI Bridge on port {port}...", flush=True)
     uvicorn.run(socket_app, host="127.0.0.1", port=port, log_level="info")
 
 

@@ -1,13 +1,13 @@
 All notable changes to WSHawk will be documented in this file.
 
-## [3.0.5] - 2026-03-23
+## [3.0.6] - 2026-03-23
 
 ### Fixed
 - **XSS Scanner Module Crash** — Fixed `AttributeError: type object 'WSPayloads' has no attribute 'get_xss_payloads'` in `scanner_v2.py` that caused a fatal abort during the XSS testing phase. The correct method `get_xss()` is now called.
-- **CLI Banner Version Drift** — Banner previously displayed `V3.0.2` regardless of actual version; now correctly shows `V3.0.5`.
+- **CLI Banner Version Drift** — Banner previously displayed `V3.0.2` regardless of actual version; now correctly shows `V3.0.6`.
 
 ### Changed
-- **Version Synchronization** — Unified version to `3.0.5` across all project surfaces: `pyproject.toml`, `desktop/package.json`, `wshawk/__init__.py`, `wshawk-bridge.spec`, `PKGBUILD`, `CITATION.cff`, `homebrew-tap/Casks/wshawk.rb`, `debian/changelog`, CLI banner, and README.
+- **Version Synchronization** — Unified version to `3.0.6` across all project surfaces: `pyproject.toml`, `desktop/package.json`, `wshawk/__init__.py`, `wshawk-bridge.spec`, `PKGBUILD`, `CITATION.cff`, `homebrew-tap/Casks/wshawk.rb`, `debian/changelog`, CLI banner, and README.
 
 ## [3.0.4] - 2026-03-05
 
