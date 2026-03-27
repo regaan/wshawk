@@ -1,9 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
-# WSHawk V3.0.6 — PyInstaller spec for the GUI Bridge sidecar binary
-# Bundles the full backend: core scanner, web_pentest toolkit, smart payloads,
-# payload mutator, database manager, and all data files.
+# WSHawk V4.0.0 — PyInstaller spec for the GUI Bridge sidecar binary
+# Bundles the full backend: core scanner, platform daemon/store/transport/session/
+# protocol/attacks/evidence layers, web_pentest toolkit, payload mutator,
+# database manager, and all data files.
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 all_datas = collect_data_files('certifi') + collect_data_files('aiohttp') + [
         # Payload wordlists (used by scanner + blaster)
@@ -12,12 +13,23 @@ all_datas = collect_data_files('certifi') + collect_data_files('aiohttp') + [
         ('wshawk/web', 'wshawk/web'),
     ]
 
-a = Analysis(
-    ['wshawk/gui_bridge.py'],
-    pathex=['.'],
-    binaries=[],
-    datas=all_datas,
-    hiddenimports=[
+platform_hiddenimports = []
+for package in [
+    'wshawk.daemon',
+    'wshawk.store',
+    'wshawk.transport',
+    'wshawk.session',
+    'wshawk.protocol',
+    'wshawk.attacks',
+    'wshawk.evidence',
+    'wshawk.web_pentest',
+    'wshawk.integrations',
+    'wshawk.smart_payloads',
+    'wshawk.waf',
+]:
+    platform_hiddenimports += collect_submodules(package)
+
+base_hiddenimports = [
         # ── Core WSHawk modules ──
         'wshawk',
         'wshawk.__init__',
@@ -43,45 +55,15 @@ a = Analysis(
         'wshawk.enhanced_reporter',
         'wshawk.report_exporter',
         'wshawk.plugin_system',
+        'wshawk.plugin_runner',
         'wshawk.defensive_validation',
         'wshawk.ai_engine',
-        'wshawk.ai_exploit_engine',        # NEW: Heuristic Auto-Exploit (Highlight-to-Hack)
-        'wshawk.dom_invader',              # NEW: Headless DOM XSS Verifier + Auth Flow Recorder
-        'wshawk.headless_xss_verifier',    # Legacy verifier (kept for compat)
-
-        # ── Smart Payload Engine ──
-        'wshawk.smart_payloads',
-        'wshawk.smart_payloads.context_generator',
-        'wshawk.smart_payloads.feedback_loop',
-        'wshawk.smart_payloads.payload_evolver',
-
-        # ── WAF module ──
-        'wshawk.waf',
-        'wshawk.waf.detector',
-
-        # ── Web Pentest Toolkit (22 engines) ──
-        'wshawk.web_pentest',
-        'wshawk.web_pentest.http_proxy',
-        'wshawk.web_pentest.fuzzer',
-        'wshawk.web_pentest.dir_scanner',
-        'wshawk.web_pentest.header_analyzer',
-        'wshawk.web_pentest.subdomain_finder',
-        'wshawk.web_pentest.crawler',
-        'wshawk.web_pentest.vuln_scanner',
-        'wshawk.web_pentest.report_gen',
-        'wshawk.web_pentest.tech_fingerprint',
-        'wshawk.web_pentest.ssl_analyzer',
-        'wshawk.web_pentest.sensitive_finder',
-        'wshawk.web_pentest.waf_detector',
-        'wshawk.web_pentest.cors_tester',
-        'wshawk.web_pentest.port_scanner',
-        'wshawk.web_pentest.dns_lookup',
-        'wshawk.web_pentest.csrf_forge',
-        'wshawk.web_pentest.ssrf_prober',
-        'wshawk.web_pentest.redirect_scanner',
-        'wshawk.web_pentest.proto_polluter',
-        'wshawk.web_pentest.proxy_ca',
-        'wshawk.web_pentest.attack_chainer',
+        'wshawk.ai_exploit_engine',
+        'wshawk.dom_invader',
+        'wshawk.headless_xss_verifier',
+        'wshawk.legacy_core',
+        'wshawk.legacy_advanced_cli',
+        'wshawk.web.legacy_app',
 
         # ── Third-party libraries PyInstaller may miss ──
         'uvicorn',
@@ -127,8 +109,6 @@ a = Analysis(
         'sqlite3',
 
         # ── Playwright (optional — graceful fallback if not installed) ────────
-        # PyInstaller won't auto-detect these due to lazy try/except imports.
-        # If playwright is not installed, dom_invader falls back cleanly.
         'playwright',
         'playwright.async_api',
         'playwright._impl._api_types',
@@ -138,7 +118,16 @@ a = Analysis(
         'playwright._impl._network',
         'playwright._impl._dialog',
         'playwright.sync_api',
-    ],
+    ]
+
+hiddenimports = sorted(set(base_hiddenimports + platform_hiddenimports))
+
+a = Analysis(
+    ['wshawk/gui_bridge.py'],
+    pathex=['.'],
+    binaries=[],
+    datas=all_datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -1,5 +1,15 @@
 All notable changes to WSHawk will be documented in this file.
 
+## [4.0.0] - 2026-03-25
+
+### Added
+- **Platform Refactor** — Split the bridge into daemon, store, transport, session, protocol, attacks, and evidence layers with a project-backed offensive workflow model.
+- **Extension Upgrade** — Migrated the browser companion to Manifest V3 with dynamic bridge discovery, optional token support, and project-aware handshake capture.
+
+### Changed
+- **Version Synchronization** — Unified current release surfaces to `4.0.0` across packaging, desktop, bridge, extension, reports, templates, integrations, and runtime banners.
+- **Web Pentest Platforming** — Promoted the HTTP toolkit into the same project/evidence model used by the WebSocket offensive stack.
+
 ## [3.0.6] - 2026-03-23
 
 ### Fixed

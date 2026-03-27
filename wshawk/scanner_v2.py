@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WSHawk v2.0 - Advanced WebSocket Security Scanner
+WSHawk v4.0.0 - Advanced WebSocket Security Scanner
 Integrated with all analyzer modules + smart payload generation
 """
 
@@ -356,15 +356,15 @@ class WSHawkV2:
                                     
                                     if is_executed:
                                         browser_verified = True
-                                        confidence = ConfidenceLevel.CRITICAL
-                                        description = f"REAL EXECUTION: {evidence}"
+                                        confidence = ConfidenceLevel.HIGH
+                                        description = f"Sandboxed browser execution observed: {evidence}"
                                 except Exception as e:
                                     Logger.error(f"Browser verification failed: {e}")
                             
                             Logger.vuln(f"XSS [{confidence.value}]: {description}")
                             Logger.vuln(f"Payload: {payload[:80]}")
                             if browser_verified:
-                                Logger.vuln("  [BROWSER VERIFIED] Payload executed in real browser!")
+                                Logger.vuln("  [BROWSER EVIDENCE] Sandboxed browser execution was observed.")
                             
                             vuln_info = {
                                 'type': 'Cross-Site Scripting (XSS)',

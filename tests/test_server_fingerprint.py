@@ -1,75 +1,47 @@
 #!/usr/bin/env python3
-"""
-Tests for WSHawk Server Fingerprinter
-"""
+"""Tests for WSHawk Server Fingerprinter."""
 
-import pytest
-from wshawk.server_fingerprint import ServerFingerprinter, ServerFingerprint
+import unittest
 
-
-@pytest.fixture
-def fingerprinter():
-    return ServerFingerprinter()
+from wshawk.server_fingerprint import ServerFingerprint, ServerFingerprinter
 
 
-class TestLanguageDetection:
-    """Detect backend programming language"""
+class ServerFingerprinterTests(unittest.TestCase):
+    def setUp(self):
+        self.fingerprinter = ServerFingerprinter()
 
-    def test_detects_python_from_traceback(self, fingerprinter):
-        fingerprinter.add_response('Traceback (most recent call last):\n  File "app.py", line 42')
-        fp = fingerprinter.fingerprint()
-        assert fp.language == "python"
+    def test_language_detection(self):
+        self.fingerprinter.add_response('Traceback (most recent call last):\n  File "app.py", line 42')
+        self.assertEqual(self.fingerprinter.fingerprint().language, "python")
 
-    def test_detects_node_from_error(self, fingerprinter):
+        fingerprinter = ServerFingerprinter()
         fingerprinter.add_response("Error: Cannot read property\n    at Object.<anonymous> (/app/server.js:15:3)")
-        fp = fingerprinter.fingerprint()
-        assert fp.language == "nodejs"
+        self.assertEqual(fingerprinter.fingerprint().language, "nodejs")
 
-    def test_detects_java_from_stacktrace(self, fingerprinter):
+        fingerprinter = ServerFingerprinter()
         fingerprinter.add_response("java.lang.NullPointerException\n\tat com.app.Main.run(Main.java:15)")
-        fp = fingerprinter.fingerprint()
-        assert fp.language == "java"
+        self.assertEqual(fingerprinter.fingerprint().language, "java")
 
-    def test_unknown_with_clean_response(self, fingerprinter):
-        fingerprinter.add_response('{"status": "ok"}')
-        fp = fingerprinter.fingerprint()
-        # With no identifying info, language may be None
-        assert isinstance(fp, ServerFingerprint)
+    def test_fingerprint_structure_and_ranges(self):
+        self.fingerprinter.add_response("test")
+        fingerprint = self.fingerprinter.fingerprint()
+        self.assertIsInstance(fingerprint, ServerFingerprint)
+        self.assertTrue(hasattr(fingerprint, "language"))
+        self.assertTrue(hasattr(fingerprint, "framework"))
+        self.assertTrue(hasattr(fingerprint, "database"))
+        self.assertTrue(hasattr(fingerprint, "libraries"))
+        self.assertTrue(hasattr(fingerprint, "confidence"))
+        self.assertGreaterEqual(fingerprint.confidence, 0.0)
+        self.assertLessEqual(fingerprint.confidence, 1.0)
+        self.assertIsInstance(fingerprint.libraries, list)
 
-
-class TestFingerprintStructure:
-    """ServerFingerprint data structure"""
-
-    def test_has_all_fields(self, fingerprinter):
-        fingerprinter.add_response("test")
-        fp = fingerprinter.fingerprint()
-        assert hasattr(fp, "language")
-        assert hasattr(fp, "framework")
-        assert hasattr(fp, "database")
-        assert hasattr(fp, "libraries")
-        assert hasattr(fp, "confidence")
-
-    def test_confidence_in_range(self, fingerprinter):
-        fingerprinter.add_response('Traceback (most recent call last):')
-        fp = fingerprinter.fingerprint()
-        assert 0.0 <= fp.confidence <= 1.0
-
-    def test_libraries_is_list(self, fingerprinter):
-        fingerprinter.add_response("test")
-        fp = fingerprinter.fingerprint()
-        assert isinstance(fp.libraries, list)
+    def test_payload_recommendations_and_info(self):
+        self.fingerprinter.add_response('Traceback (most recent call last):\ndjango')
+        fingerprint = self.fingerprinter.fingerprint()
+        recommendations = self.fingerprinter.get_recommended_payloads(fingerprint)
+        self.assertIsInstance(recommendations, (list, dict))
+        self.assertIsInstance(self.fingerprinter.get_info(), dict)
 
 
-class TestPayloadRecommendation:
-    """Recommend payloads based on fingerprint"""
-
-    def test_recommends_payloads(self, fingerprinter):
-        fingerprinter.add_response('Traceback (most recent call last):\ndjango')
-        fp = fingerprinter.fingerprint()
-        recommendations = fingerprinter.get_recommended_payloads(fp)
-        assert isinstance(recommendations, (list, dict))
-
-    def test_get_info_returns_dict(self, fingerprinter):
-        fingerprinter.add_response("test")
-        info = fingerprinter.get_info()
-        assert isinstance(info, dict)
+if __name__ == "__main__":
+    unittest.main()

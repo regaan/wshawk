@@ -1,59 +1,59 @@
-# WSHawk — Enterprise-Grade WebSocket Security Scanner & Web Penetration Testing Toolkit
+# WSHawk - WebSocket Security Testing & Web Penetration Testing Toolkit
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/wshawk.svg)](https://badge.fury.io/py/wshawk)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Playwright](https://img.shields.io/badge/Playwright-Supported-green.svg)](https://playwright.dev/)
-[![Status: Production](https://img.shields.io/badge/status-production-green.svg)](https://github.com/regaan/wshawk)
-[![Adoption: 900+ Clones](https://img.shields.io/badge/Adoption-900+_clones_(14d)-blueviolet?style=flat&logo=github)](https://github.com/regaan/wshawk/graphs/traffic)
-[![Community: 120+ Devs](https://img.shields.io/badge/Community-120+_Active_Devs-orange?style=flat&logo=community)](https://github.com/regaan/wshawk)
+[![Desktop](https://img.shields.io/badge/Desktop-Linux%20%7C%20Windows%20%7C%20macOS-2563eb)](https://github.com/regaan/wshawk/tree/main/desktop)
+[![Validation Labs](https://img.shields.io/badge/Validation-Local%20Labs%20Included-16a34a)](https://github.com/regaan/wshawk/tree/main/validation)
 
-**WSHawk** is an enterprise-grade, open-source WebSocket security scanner built for professional penetration testers and red teams. It performs automated vulnerability assessment over WebSocket connections using an adaptive **Smart Payload Evolution (SPE)** engine with real-time feedback loops and genetic payload mutation. Designed for high-performance environments at the **ROT Independent Security Research Lab**.
+**WSHawk** is an open-source toolkit for WebSocket security testing, web application penetration testing, and stateful attack validation. It combines a CLI scanner, web dashboard, Electron desktop app, browser companion, and project-backed workflows for authorized security assessments.
 
-Starting with v3.0.6, we've transitioned to the **AGPL-3.0 license** to better protect the project while keeping it open for the community. This release includes the **Headless DOM Invader** powered by Playwright for real browser-based XSS verification and complex SSO auth flow recording/replay. Also includes a **Context-Aware Heuristic Engine** and **WSHawk Browser Companion** for seamless handshake interception.
+As of v4.0.0, WSHawk ships under the **AGPL-3.0 license** and includes the platform refactor, project-backed HTTP and WebSocket workflows, identity-aware replay and diffing, race testing, Playwright-assisted browser evidence collection for XSS testing, and local validation labs for realtime application scenarios.
 
 > [!IMPORTANT]
 > **Full Documentation:**
-> - 🦅 **[WSHawk V3: Complete Enterprise Guide](docs/V3_COMPLETE_GUIDE.md)** — Architecture, scanning engine, configuration
-> - 💻 **[WSHawk Desktop: Full Reference Manual](docs/DESKTOP_V3_GUIDE.md)** — All 22 tools, API reference, build guide
+> - 🦅 **[WSHawk v4: Complete Guide](docs/V4_COMPLETE_GUIDE.md)** — Architecture, workflows, configuration, validation, and integrations
+> - 💻 **[WSHawk Desktop v4: Full Feature Guide](docs/DESKTOP_V4_GUIDE.md)** — Desktop setup, projects, replay, interception, evidence, and web pentest workflows
 
 ---
 
-## Why WSHawk — Enterprise Security Features
+## Why WSHawk — WebSocket and Web App Security Features
 
-- **Smart Payload Evolution** — Genetic algorithm that mutates and evolves payloads based on server responses, WAF blocks, and timing signals
-- **22,000+ attack payloads** across 11 categories (SQLi, XSS, CMDi, XXE, SSRF, NoSQLi, LFI, SSTI, LDAP, open redirect, CSV injection)
-- **Real browser-based XSS verification** via Playwright — confirms actual script execution, not just pattern matching
-- **Blind vulnerability detection** via OAST callbacks — catches XXE, SSRF, and DNS exfiltration that response-only scanners miss
-- **Full-duplex WebSocket interceptor** — MitM proxy with frame-by-frame forward, drop, and edit (similar to Burp Suite)
-- **Session hijacking analysis** — Token reuse, session fixation, privilege escalation, and impersonation testing
-- **22 web pentest tools** — Crawler, fuzzer, port scanner, subdomain finder, WAF detector, CORS tester, SSL analyzer, and more
-- **WAF-aware mutation engine** — 8 bypass strategies (encoding, case variation, comment injection, polyglot, tag breaking)
-- **CVSS v3.1 scoring** — Industry-standard risk assessment for all findings
-- **Enterprise integrations** — Auto-push findings to Jira, DefectDojo, Slack, Discord, and Microsoft Teams
-- **Professional reporting** — HTML, JSON, PDF, CSV, and SARIF export formats
-- **Native desktop app** — Electron + Python hybrid with real-time streaming results on Linux, Windows, and macOS
+- **Stateful WebSocket testing** — persistent connections, asynchronous response handling, replay, and protocol-aware attack execution
+- **Smart Payload Evolution** — context-aware payload generation and mutation based on target behavior, timing, and blocking signals
+- **Browser-assisted XSS evidence collection** via Playwright for reflected and DOM-style payload testing
+- **Blind vulnerability detection** via OAST callbacks for XXE, SSRF, and related out-of-band flows
+- **Full-duplex WebSocket interceptor** — local proxy with frame-by-frame forward, drop, and edit controls
+- **Identity-aware replay and diffing** for HTTP and WebSocket traffic across captured sessions and stored identities
+- **Desktop web pentest workspace** with crawler, fuzzer, directory scan, header analysis, CORS, redirect, SSRF, TLS, and prototype-pollution tooling
+- **Project-backed evidence** — local identities, notes, traffic, findings, and export bundles tied to a reusable project record
+- **CVSS v3.1 scoring** for scanner findings and generated reports
+- **Integrations** — Jira, DefectDojo, and webhook notifications
+- **Reporting and exports** — HTML, JSON, Markdown, PDF, CSV, and SARIF outputs across the platform
+- **Cross-platform desktop app** — Electron + Python hybrid for Linux, Windows, and macOS
 
 ---
 
 ## ⚡ Performance & Adoption Benchmarks
 
-- **Community Adoption**: 900+ repository clones within the last 14 days and active engagement from 120+ unique developers.
-- **Scanning Velocity**: Engineered in Go with raw syscall optimization, achieving **350,000+ executions per second** in distributed fuzzer modules.
-- **Payload Corpus**: 22,000+ specialized attack vectors across 11 vulnerability categories.
+- **Current release**: `v4.0.0`
+- **Interfaces**: CLI, web dashboard, desktop app, and browser companion
+- **Validation coverage**: `full_stack_realtime_saas`, `socketio_saas`, and `graphql_subscriptions_lab`
+- **Primary focus**: authenticated, stateful, and asynchronous web application testing rather than passive HTTP-only scanning
 
 ---
 
-## Enterprise WebSocket Vulnerability Scanner
+## WebSocket Vulnerability Scanner
 
-WSHawk's core engine performs enterprise-grade, stateful, bidirectional WebSocket security testing. Unlike traditional DAST scanners that only handle HTTP request-response, WSHawk maintains persistent WebSocket connections and analyzes asynchronous responses that may arrive long after the attack payload is sent — critical for real-world financial, healthcare, and SaaS applications.
+WSHawk's core engine focuses on stateful, bidirectional WebSocket security testing. Unlike HTTP-only scanners, it keeps live connections open, captures handshake context, and evaluates asynchronous behavior that may appear well after a payload is sent. This fits chat systems, collaboration platforms, internal dashboards, trading interfaces, and other realtime SaaS targets.
 
 ### Vulnerability Detection
 
 | Category | Technique |
 |---|---|
 | **SQL Injection** | Error-based, time-based (SLEEP/WAITFOR), boolean-based blind |
-| **Cross-Site Scripting (XSS)** | Reflection analysis, context detection, DOM sink identification, browser verification |
+| **Cross-Site Scripting (XSS)** | Reflection analysis, context detection, DOM sink identification, browser evidence collection |
 | **Command Injection** | Timing attacks, command chaining (`&&`, `\|`, `;`), out-of-band detection |
 | **XML External Entity (XXE)** | Entity expansion, OAST callback detection, parameter entities |
 | **Server-Side Request Forgery (SSRF)** | Internal IP probing, cloud metadata access, DNS rebinding |
@@ -70,9 +70,9 @@ The SPE system adapts attack payloads in real-time:
 
 ---
 
-## Web Application Penetration Testing Toolkit (Enhanced in v3.0.2)
+## Web Application Penetration Testing Toolkit (Enhanced in v4.0.0)
 
-The WSHawk Desktop application now ships with 22 HTTP security tools organized into six phases. We're building this out alongside the WebSocket scanner to give pentesters a single interface for both WebSocket and HTTP assessments.
+The WSHawk desktop workspace also includes HTTP security tools organized into six phases so WebSocket and web application assessments can share the same project, identities, notes, and evidence trail.
 
 ### Reconnaissance & Discovery Tools
 
@@ -133,14 +133,15 @@ A native Electron + Python desktop application with three operating modes:
 - **Payload Blaster** — High-speed WebSocket fuzzer with 11 payload categories and Smart Payload Evolution toggle
 - **WebSocket Endpoint Map** — Automated discovery via HTTP Upgrade probing, HTML crawling, and JavaScript source analysis
 - **Auth Builder** — Multi-step authentication sequence with regex token extraction and variable substitution
-- **Exploit PoC Generator** — One-click standalone Python exploit script for confirmed vulnerabilities
-- **Session Persistence** — Save and restore full assessment state to `~/.wshawk/sessions/`
-- **Scan History & Diffing** — SQLite-backed history with vulnerability regression tracking between scans
+- **Exploit PoC Generator** — Standalone Python proof-of-concept export for selected findings
+- **Project Files** — Save and reopen sanitized local `.wshawk` project files
+- **Project Evidence** — Local project database for identities, traffic, findings, notes, and export bundles
+- **Tamper-Evident Exports** — Provenance and integrity metadata for exported project bundles
 - **HawkSearch** — `Ctrl+K` command palette for instant navigation to any tool
 
 **Builds for:** Linux (.pacman, .AppImage, .deb) · Windows (.exe NSIS installer) · macOS (.dmg)
 
-**[Full Desktop Documentation →](docs/DESKTOP_V3_GUIDE.md)**
+**[Full Desktop Documentation →](docs/DESKTOP_V4_GUIDE.md)**
 
 ---
 
@@ -157,12 +158,12 @@ playwright install chromium
 
 ### Install on macOS (Homebrew)
 
-**Method 1: One-liner (Recommended)**
+**Method 1: Direct Cask URL**
 ```bash
 brew install --cask https://raw.githubusercontent.com/regaan/homebrew-tap/main/Casks/wshawk.rb
 ```
 
-**Method 2: Stay Updated (Via Tap)**
+**Method 2: Via Tap**
 ```bash
 # Register the WSHawk tap
 brew tap regaan/tap
@@ -173,7 +174,7 @@ brew install --cask wshawk
 
 ### Install on Kali Linux / Debian
 
-WSHawk is available via the official Regaan APT repository.
+If you use the published Debian/Kali package feed:
 
 ```bash
 # Add the WSHawk GPG key
@@ -188,7 +189,7 @@ sudo apt update && sudo apt install wshawk
 
 ### Install on Arch Linux
 
-WSHawk is available in the Arch User Repository (AUR).
+If you use the published Arch User Repository (AUR) package:
 
 ```bash
 # Install WSHawk via yay
@@ -271,10 +272,10 @@ asyncio.run(scanner.run_heuristic_scan())
 | WebSocket Interceptor (MitM) | — | — | ✅ |
 | Payload Blaster / Fuzzer | — | — | ✅ |
 | Endpoint Discovery Map | — | — | ✅ |
-| Scan Persistence | — | SQLite | SQLite + Sessions |
+| Scan Persistence | — | SQLite | SQLite + Projects |
 | Exploit PoC Export | — | — | ✅ |
-| Report Formats | HTML | HTML | HTML / JSON / PDF |
-| Best For | CI/CD pipelines | Teams, SOC | Manual pentesting, red teams |
+| Report Formats | HTML / JSON / CSV / SARIF | HTML / PDF | HTML / JSON / Markdown |
+| Best For | Automation, CI/CD, scripted runs | Shared browser access and review | Manual pentesting, interception, replay, and red-team workflows |
 
 ---
 
@@ -297,9 +298,9 @@ integrations:
 
 | Environment Variable | Description |
 |---|---|
-| `WSHAWK_BRIDGE_PORT` | Backend server port (default: 8080) |
+| `WSHAWK_BRIDGE_PORT` | Local bridge port (default: 8080) |
 | `WSHAWK_WEB_PASSWORD` | Web dashboard authentication password |
-| `WSHAWK_API_KEY` | API key for programmatic access |
+| `WSHAWK_API_KEY` | Legacy web API key used by the older Flask dashboard path |
 
 ---
 
@@ -320,12 +321,11 @@ See [Defensive Validation Guide](docs/DEFENSIVE_VALIDATION.md).
 
 ---
 
-## Security Warning — Fake Versions
+## Security Warning — Use Official Sources
 
-> Repackaged versions of WSHawk containing malware have been found on third-party download sites.
+> Download WSHawk only from the official project sources or a package mirror you control.
 >
-> **Download only from official sources:**
-> - **Website:** [`https://wshawk.rothackers.com`](https://wshawk.rothackers.com)
+> **Preferred sources:**
 > - **GitHub:** [`https://github.com/regaan/wshawk`](https://github.com/regaan/wshawk)
 > - **PyPI:** `pip install wshawk`
 > - **Docker:** `docker pull rothackers/wshawk`
@@ -336,10 +336,11 @@ See [Defensive Validation Guide](docs/DEFENSIVE_VALIDATION.md).
 
 | Guide | Description |
 |---|---|
-| **[V3.0.4 Release Guide](docs/V3.0.4_RELEASE_GUIDE.md)** | AGPL-3.0 Transition, DOM Invader, Auth Flow Recorder — full technical reference |
-| **[🦅 Complete Enterprise Guide](docs/V3_COMPLETE_GUIDE.md)** | Architecture, scanning engine, configuration, integrations |
-| **[💻 Desktop Reference Manual](docs/DESKTOP_V3_GUIDE.md)** | All 22 tools, API reference, build instructions |
+| **[💻 Desktop v4 Full Feature Guide](docs/DESKTOP_V4_GUIDE.md)** | Current desktop guide for projects, replay, interception, web pentest workflows, and evidence |
+| **[🦅 WSHawk v4 Complete Guide](docs/V4_COMPLETE_GUIDE.md)** | Current v4 architecture, workflows, configuration, validation, and integrations |
 | [Getting Started](docs/getting_started.md) | First scan, output format, common use cases |
+| [Advanced Usage](docs/advanced_usage.md) | Current Python API, scanner automation, and module-level examples |
+| [Validation Checklist](docs/validation_checklist.md) | Local validation lab workflow and expected outcomes |
 | [Defensive Validation](docs/DEFENSIVE_VALIDATION.md) | Blue team security control testing |
 | [Vulnerability Details](docs/vulnerabilities.md) | Full vulnerability coverage reference |
 | [Session Security Tests](docs/session_tests.md) | WebSocket session hijacking tests |
@@ -351,7 +352,7 @@ See [Defensive Validation Guide](docs/DEFENSIVE_VALIDATION.md).
 
 WSHawk is designed for authorized penetration testing, bug bounty programs, security research, and education. **Always obtain explicit permission before scanning any target.**
 
-The author is not responsible for misuse of this tool. Repackaged versions found on third-party download sites are not associated with this project.
+The author is not responsible for misuse of this tool. If you use packaged builds, prefer the official project sources or mirrors you control.
 
 ## License
 
@@ -375,15 +376,15 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**WSHawk v3.0.6** — Professional WebSocket Security Scanner & Interception Suite
+**WSHawk v4.0.0** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
 
 ---
 
-### Latest Updates (v3.0.6)
-- **DOM Invader**: Headless Playwright engine verifies XSS payloads in a real browser — zero false positives. Confirms `alert()`, `eval()`, DOM mutations, and injected script tags.
-- **Auth Flow Recorder**: Records complex SSO/OAuth login flows in a visible browser, then replays them headlessly to mint fresh tokens during long fuzzing runs.
-- **Auto Session Reconnect**: Payload Blaster detects session expiry and automatically replays the recorded auth flow to reconnect — no manual intervention needed.
-- **AI Exploit Engine**: Right-click any parameter in ReqForge to generate context-aware XSS/SQLi/SSTI payloads, auto-populated into the Payload Blaster.
-- **Context-Aware Heuristic Fuzzing**: Advanced payload generation engine with deep protocol awareness for high-accuracy vulnerability discovery.
+### Latest Updates (v4.0.0)
+- **Platform Refactor**: The runtime is split into daemon, transport, session, protocol, attacks, evidence, and store layers for cleaner project-backed workflows.
+- **Project-Backed Operations**: HTTP and WebSocket replay, AuthZ diffing, race testing, captured identities, and evidence now live in the same local project record.
+- **Browser Companion Pairing**: The extension uses session pairing and explicit capture scopes for WebSocket handshake ingestion.
+- **Tamper-Evident Exports**: Project bundle exports include provenance and integrity metadata for later verification.
+- **Validation Labs**: Local scenarios cover full-stack realtime SaaS, Socket.IO, and GraphQL subscription testing paths.
 
 *Built for security professionals, by Regaan.*

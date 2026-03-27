@@ -124,24 +124,87 @@ jobs:
           body: |
             ## WSHawk ${{ github.ref_name }}
 
-            Enterprise-grade WebSocket security scanner with web penetration testing toolkit.
+            WSHawk v4 introduces a major architectural shift from a standalone WebSocket scanner to a project-backed offensive security platform designed for modern web and realtime application testing.
 
-            ### Downloads
+            ---
+
+            ## Key Highlights
+
+            ### Project-Based Workflow
+            - Unified project model for WebSocket and HTTP testing
+            - Centralized storage of identities, traffic, findings, and evidence
+            - Structured workflows for replay, comparison, and validation
+
+            ### Replay, Authorization Diffing, and Race Testing
+            - Identity-aware replay across sessions
+            - Cross-role and cross-tenant behavior comparison
+            - Stateful race condition testing for critical actions
+
+            ### Desktop Application
+            - Electron and Python hybrid architecture
+            - WebSocket interceptor with frame-level control
+            - Payload Blaster for high-throughput testing
+            - Endpoint mapping and authentication workflow tools
+
+            ### Web Penetration Testing Toolkit
+            - Crawler, fuzzer, and directory scanner
+            - SSRF, CORS, redirect, and prototype pollution testing
+            - TLS, headers, and sensitive data analysis
+
+            ### Evidence and Reporting
+            - Project-backed evidence timeline
+            - Tamper-evident export bundles
+            - Export formats: HTML, JSON, Markdown, PDF, CSV, SARIF
+
+            ### Validation Labs
+            - Full-stack realtime SaaS testing scenarios
+            - Socket.IO workflow validation
+            - GraphQL subscription testing
+
+            ### Smart Payload Engine
+            - Context-aware payload generation
+            - Adaptive mutation based on target responses
+
+            ### Browser-Assisted Testing
+            - Playwright integration for XSS validation
+            - Browser companion for handshake and session capture
+
+            ---
+
+            ## Breaking Changes
+
+            - The CLI is now a compatibility layer for legacy workflows
+            - Core functionality is centered around the project-backed platform and desktop interface
+
+            ---
+
+            ## Downloads
 
             | Platform | File |
             |---|---|
-            | **Windows** | `.exe` (NSIS installer) |
-            | **macOS** | `.dmg` (Apple Disk Image) |
-            | **Linux (Universal)** | `.AppImage` |
-            | **Arch Linux** | `.pacman` |
-            | **Ubuntu/Debian** | `.deb` |
+            | Windows | `.exe` |
+            | macOS | `.dmg` |
+            | Linux (Universal) | `.AppImage` |
+            | Arch Linux | `.pacman` |
+            | Ubuntu/Debian | `.deb` |
 
-            ### Install via pip
+            ---
+
+            ## Installation
+
             ```bash
             pip install wshawk==${{ github.ref_name }}
             ```
 
-            **Full Changelog**: https://github.com/regaan/wshawk/compare/v3.0.5...${{ github.ref_name }}
+            ---
+
+            ## Full Changelog
+
+            https://github.com/regaan/wshawk/compare/v3.0.5...${{ github.ref_name }}
+
+            ---
+
+            WSHawk is intended for authorized security testing, research, and education. Ensure proper authorization before use.
           files: |
             artifacts/**/*.exe
             artifacts/**/*.dmg

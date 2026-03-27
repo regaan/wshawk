@@ -109,7 +109,7 @@ async def main():
     from .scanner_v2 import WSHawkV2
     
     Logger.info(f"Target: {url}")
-    Logger.info("Using WSHawk v2.0 Advanced Scanner")
+    Logger.info("Using WSHawk v4.0.0 Advanced Scanner")
     
     scanner = WSHawkV2(url, max_rps=10)
     scanner.use_headless_browser = False  # Disable by default
@@ -117,7 +117,7 @@ async def main():
     
     # Run selected tests or full heuristic scan
     if '99' in choices:
-        # Full scan: use the heuristic scan pipeline (all v2.0 features)
+        # Full scan: use the heuristic scan pipeline (all advanced features)
         await scanner.run_heuristic_scan()
     else:
         # Individual tests: connect and run only what the user selected

@@ -1,113 +1,125 @@
-# Vulnerability Detection
+# WSHawk v4 Vulnerability Coverage
 
-WSHawk detects the following vulnerability types:
+WSHawk covers multiple vulnerability families, but not all of them are found the same way.
 
-## SQL Injection
-**Severity:** CRITICAL  
-**CVSS Score:** 8.1
+In v4, coverage comes from a mix of:
 
-Tests for SQL injection vulnerabilities in WebSocket messages using:
-- Error-based detection (MySQL, PostgreSQL, SQLite errors)
-- Timing-based detection (sleep commands)
-- 722+ SQL injection payloads
+- compatibility scanner heuristics
+- browser-assisted evidence collection
+- HTTP and WebSocket replay
+- AuthZ diff across identities
+- race testing
+- project-backed evidence review
 
-**Example Payloads:**
-- `' OR '1'='1`
-- `'; DROP TABLE users--`
-- `1' AND SLEEP(5)--`
+That means the right question is not only "what does WSHawk detect?" but also "which workflow discovers it?"
 
-## Cross-Site Scripting (XSS)
-**Severity:** HIGH  
-**CVSS Score:** 7.4
+---
 
-Detects XSS vulnerabilities with:
-- Reflection-based detection
-- **Playwright browser verification** (confirms actual execution)
-- 7,106+ XSS payloads
-- WAF bypass techniques
+## Compatibility Scanner Coverage
 
-**Example Payloads:**
-- `<script>alert(1)</script>`
-- `<img src=x onerror=alert(1)>`
-- `<svg onload=alert(1)>`
+The current `WSHawkV2` scanner path covers these major classes:
 
-## Command Injection
-**Severity:** CRITICAL  
-**CVSS Score:** 9.3
+| Area | Primary Detection Style | Notes |
+|---|---|---|
+| **SQL Injection** | error, reflection, and timing signals | strongest on targets that visibly reflect or delay |
+| **Cross-Site Scripting (XSS)** | reflection and context heuristics, plus optional browser-assisted evidence collection | browser evidence is supportive, not a guarantee of exploitability everywhere |
+| **Command Injection** | output and timing markers | depends on target feedback quality |
+| **XXE** | parser behavior plus out-of-band style checks | blind confirmation quality depends on OAST support |
+| **SSRF** | internal access patterns and OAST-style signals | also covered in web pentest tooling |
+| **NoSQL Injection** | operator and logic tampering payloads | strongest where message structure is inferred well |
+| **Path Traversal / LFI** | known file markers and encoded path variants | most useful when responses leak content or errors |
 
-Tests for OS command injection using:
-- Output-based detection
-- Timing-based detection
-- 8,562+ command injection payloads
+The scanner can also append session security findings from the session tester module.
 
-**Example Payloads:**
-- `; ls -la`
-- `| whoami`
-- `&& cat /etc/passwd`
+---
 
-## XML External Entity (XXE)
-**Severity:** CRITICAL  
-**CVSS Score:** 8.6
+## Web Pentest Coverage
 
-Detects XXE vulnerabilities with:
-- OAST integration for blind XXE
-- File disclosure detection
-- External entity processing
+The `wshawk/web_pentest/` toolkit extends coverage into HTTP-focused work:
 
-**Example Payloads:**
-```xml
-<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
-<foo>&xxe;</foo>
-```
+| Area | Typical Tooling |
+|---|---|
+| **Header security** | Header Analyzer |
+| **Content discovery** | Web Crawler, Dir Scanner |
+| **Input fuzzing** | HTTP Fuzzer |
+| **CORS issues** | CORS Tester |
+| **SSRF** | SSRF Prober |
+| **Open Redirect** | Redirect Hunter |
+| **Prototype Pollution** | Proto Polluter |
+| **Sensitive data exposure** | Sensitive Finder |
+| **TLS posture** | SSL/TLS Analyzer |
+| **Technology and WAF fingerprinting** | Tech Fingerprint, WAF Detector |
 
-## Server-Side Request Forgery (SSRF)
-**Severity:** HIGH  
-**CVSS Score:** 8.2
+These tools are most useful when paired with the v4 desktop project workflow so the results stay tied to identities, notes, and evidence.
 
-Tests for SSRF using:
-- OAST integration for blind SSRF
-- Internal network access detection
-- Cloud metadata endpoint testing
+---
 
-## NoSQL Injection
-**Severity:** CRITICAL  
-**CVSS Score:** 8.1
+## Project-Backed Offensive Workflows
 
-Detects NoSQL injection in MongoDB, CouchDB, Redis with operator injection payloads.
+Some of the most important v4 findings come from replay and comparison workflows rather than one-shot scanning.
 
-## Path Traversal
-**Severity:** HIGH  
-**CVSS Score:** 7.5
+### HTTP and WebSocket Replay
 
-Tests for directory traversal vulnerabilities:
-- `../../../etc/passwd`
-- Windows path traversal
-- URL-encoded variants
+Replay helps validate whether a captured action still works when repeated with:
 
-## LDAP Injection
-**Severity:** HIGH  
-**CVSS Score:** 7.3
+- a different identity
+- a stale token
+- a modified header set
+- edited variables
 
-Detects LDAP injection vulnerabilities.
+### AuthZ Diff
 
-## Server-Side Template Injection (SSTI)
-**Severity:** CRITICAL  
-**CVSS Score:** 9.0
+AuthZ diff compares behavior across stored identities. This is especially important for:
 
-Tests for template injection in various engines (Jinja2, Twig, etc.).
+- cross-tenant leaks
+- role confusion
+- object-level access control drift
+- subscription exposure
 
-## Open Redirect
-**Severity:** MEDIUM  
-**CVSS Score:** 5.4
+### Race Testing
 
-Detects unvalidated redirect vulnerabilities.
+Race testing helps uncover:
 
-## Session Security Issues
+- duplicate state changes
+- replay-before-invalidation windows
+- token reuse timing flaws
+- concurrent update bugs
 
-See [Session Tests](session_tests.md) for detailed information on:
-- Token Reuse
-- Subscription Spoofing
-- Impersonation
-- Channel Violations
-- Session Fixation
-- Privilege Escalation
+### Subscription Abuse
+
+Subscription abuse workflows are useful for:
+
+- topic or room overreach
+- cross-tenant realtime data leakage
+- privileged update replay over subscription-style targets
+
+---
+
+## Session Security Coverage
+
+The session tester module focuses on:
+
+- token reuse
+- subscription spoofing
+- impersonation
+- channel boundary violations
+- session fixation
+- privilege escalation
+
+See [Session Security Tests](session_tests.md) for that module specifically.
+
+---
+
+## Evidence Quality Notes
+
+Not every finding class has the same confidence profile.
+
+- reflection-only results are weaker than state-changing replay results
+- timing-based findings need operator judgment
+- browser-assisted XSS evidence helps, but should not be treated as absolute proof in every deployment model
+- replay, AuthZ diff, race, and exported evidence are often the strongest v4 proof paths
+
+For current operator workflow, pair this guide with:
+
+- [Desktop v4 Full Feature Guide](DESKTOP_V4_GUIDE.md)
+- [WSHawk v4 Complete Guide](V4_COMPLETE_GUIDE.md)

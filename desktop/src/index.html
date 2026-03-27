@@ -4,10 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <title>WSHawk Intelligence</title>
-    <!-- Premium Fonts: Inter for UI, JetBrains Mono for Code -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
-        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -145,6 +141,13 @@
                         </svg>
                         Request Forge
                     </button>
+                    <button class="nav-item" data-target="attacks">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2l3 7h7l-5.5 4.2L18.5 21 12 16.8 5.5 21l2-7.8L2 9h7z"></path>
+                        </svg>
+                        Attack Ops
+                    </button>
                     <button class="nav-item" data-target="blaster">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -181,6 +184,14 @@
                             <polyline points="10 9 9 9 8 9"></polyline>
                         </svg>
                         Notes
+                    </button>
+                    <button class="nav-item" data-target="evidence">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 12l2 2 4-4"></path>
+                            <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"></path>
+                        </svg>
+                        Evidence Vault
                     </button>
                     <button class="nav-item" data-target="wsmap">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -230,7 +241,28 @@
 
                 <!-- Web Pentest Section -->
                 <div id="web-menu" style="display: none;">
-                    <div class="nav-label mt-6">WEB PENTEST</div>
+                    <div class="nav-label mt-6" data-web-static-label="1">WEB PENTEST</div>
+                    <div id="web-workspace-switcher"
+                        style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 10px 0 12px;">
+                        <button class="workspace-btn web-workspace-btn active" data-web-workspace="discovery"
+                            style="margin: 0; justify-content: center;">Discovery</button>
+                        <button class="workspace-btn web-workspace-btn" data-web-workspace="requests"
+                            style="margin: 0; justify-content: center;">Requests</button>
+                        <button class="workspace-btn web-workspace-btn" data-web-workspace="attacks"
+                            style="margin: 0; justify-content: center;">Attacks</button>
+                        <button class="workspace-btn web-workspace-btn" data-web-workspace="evidence"
+                            style="margin: 0; justify-content: center;">Evidence</button>
+                    </div>
+                    <button class="nav-item" data-target="webworkspace">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                        Operations Board
+                    </button>
+                    <div class="nav-label mt-6">WORKSPACE TOOLS</div>
                     <button class="nav-item" data-target="httpforge">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -453,6 +485,34 @@
                         Team Mode
                         <span id="team-online-dot"
                             style="display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--safe); margin-left: auto; flex-shrink: 0;"></span>
+                    </button>
+                    <div class="nav-label mt-6">PROJECT</div>
+                    <button class="nav-item" data-target="evidence">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 12l2 2 4-4"></path>
+                            <path d="M12 3l7 4v5c0 5-3.8 8.8-7 9-3.2-.2-7-4-7-9V7l7-4z"></path>
+                        </svg>
+                        Evidence Vault
+                    </button>
+                    <button class="nav-item" data-target="notes">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16l4-3 4 3 4-3 4 3V8z"></path>
+                            <line x1="8" y1="9" x2="16" y2="9"></line>
+                            <line x1="8" y1="13" x2="14" y2="13"></line>
+                        </svg>
+                        Operator Notes
+                    </button>
+                    <button class="nav-item" data-target="scanhistory">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3h18v4H3z"></path>
+                            <path d="M5 7v14h14V7"></path>
+                            <line x1="9" y1="11" x2="15" y2="11"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                        Scan History
                     </button>
                 </div>
             </nav>
@@ -712,10 +772,53 @@
                             <div class="panel">
                                 <div class="panel-header glass-header flex-between">
                                     <span class="title">Request Editor</span>
-                                    <button id="send-reqforge" class="btn secondary small">Fire Payload</button>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                                        <select id="reqforge-identity-select"
+                                            style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px; min-width: 190px;">
+                                            <option value="">Anonymous Replay</option>
+                                        </select>
+                                        <button id="reqforge-refresh-identities" class="btn secondary small">Refresh Identities</button>
+                                        <button id="reqforge-store-dom-identity" class="btn secondary small">Store DOM Identity</button>
+                                        <button id="reqforge-subscription-btn" class="btn secondary small">Subscription Abuse</button>
+                                        <button id="reqforge-race-btn" class="btn secondary small">Race Attack</button>
+                                        <button id="reqforge-authz-diff-btn" class="btn secondary small">AuthZ Diff</button>
+                                        <button id="send-reqforge" class="btn secondary small">Fire Payload</button>
+                                    </div>
                                 </div>
                                 <textarea id="reqforge-req" class="code-area custom-scroll"
                                     spellcheck="false">{"action": "ping", "data": "test"}</textarea>
+                                <div style="padding: 10px 12px; border-top: 1px solid var(--border-color); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+                                    <input type="text" id="reqforge-field-paths" placeholder="Field paths: channel,tenant_id"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;">
+                                    <input type="text" id="reqforge-candidate-values" placeholder="Candidates: admin,*,root"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;">
+                                    <input type="number" id="reqforge-max-mutations" min="1" max="100" value="24"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Max subscription mutations">
+                                    <select id="reqforge-race-mode"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;">
+                                        <option value="duplicate_action">duplicate_action</option>
+                                        <option value="replay_before_invalidation">replay_before_invalidation</option>
+                                        <option value="stale_token_window">stale_token_window</option>
+                                        <option value="parallel_socket_abuse">parallel_socket_abuse</option>
+                                    </select>
+                                    <input type="number" id="reqforge-race-concurrency" min="1" max="32" value="5"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Race concurrency">
+                                    <input type="number" id="reqforge-race-waves" min="1" max="16" value="2"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Race waves">
+                                    <input type="number" id="reqforge-race-stagger" min="0" max="5000" value="25"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Stagger ms">
+                                    <input type="number" id="reqforge-race-wave-delay" min="0" max="10000" value="0"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Wave delay ms">
+                                </div>
+                                <div id="reqforge-platform-status"
+                                    style="padding: 8px 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted);">
+                                    Platform replay is ready. Store identities from DOM auth and run the same payload across roles.
+                                </div>
                             </div>
                             <div class="panel">
                                 <div class="panel-header glass-header flex-between">
@@ -742,6 +845,37 @@
                                 <div class="empty-state" style="padding: 10px;">Enter a regex pattern with capture
                                     groups
                                     and click Extract.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attack Ops -->
+                <div id="view-attacks" class="view slide-up">
+                    <div class="split-view full-height">
+                        <div class="panel" style="flex: 0 0 320px;">
+                            <div class="panel-header glass-header flex-between">
+                                <span class="title">Attack Runs</span>
+                                <button id="attacks-refresh-btn" class="btn secondary small">Refresh</button>
+                            </div>
+                            <div class="panel-body custom-scroll" id="attacks-summary"
+                                style="border-bottom: 1px solid var(--border-color); min-height: 120px;">
+                                <div class="empty-state">No platform attack data yet.</div>
+                            </div>
+                            <div class="panel-body custom-scroll" id="attacks-run-list">
+                                <div class="empty-state">Run replay, subscription abuse, race, or workflows to build the attack ledger.</div>
+                            </div>
+                        </div>
+                        <div class="panel" style="flex: 1;">
+                            <div class="panel-header glass-header flex-between">
+                                <span class="title">Offensive Findings</span>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="attacks-open-reqforge-btn" class="btn secondary small">Request Forge</button>
+                                    <button id="attacks-open-workflow-btn" class="btn secondary small">Workflow</button>
+                                </div>
+                            </div>
+                            <div class="panel-body custom-scroll" id="attacks-findings-list">
+                                <div class="empty-state">No offensive findings yet. Suspicious replay, authz drift, and race results will appear here.</div>
                             </div>
                         </div>
                     </div>
@@ -1131,13 +1265,44 @@
                     </div>
                 </div>
 
+                <!-- Evidence Vault -->
+                <div id="view-evidence" class="view slide-up">
+                    <div class="split-view full-height">
+                        <div class="panel" style="flex: 1;">
+                            <div class="panel-header glass-header flex-between">
+                                <span class="title">Evidence Vault</span>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="evidence-export-json-btn" class="btn secondary small">Export JSON</button>
+                                    <button id="evidence-export-markdown-btn" class="btn secondary small">Export Markdown</button>
+                                    <button id="evidence-export-html-btn" class="btn primary small">Export HTML</button>
+                                </div>
+                            </div>
+                            <div class="panel-body custom-scroll" id="evidence-records">
+                                <div class="empty-state">No evidence recorded yet. Scan, replay, or workflow results will appear here.</div>
+                            </div>
+                        </div>
+                        <div class="panel" style="flex: 0 0 320px;">
+                            <div class="panel-header glass-header flex-between">
+                                <span class="title">Operator Notes</span>
+                                <button id="evidence-open-notes-btn" class="btn secondary small">Open Notes</button>
+                            </div>
+                            <div class="panel-body custom-scroll" id="evidence-notes-list">
+                                <div class="empty-state">Saved notes for the current project will appear here.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Endpoint Map -->
                 <div id="view-wsmap" class="view slide-up">
                     <div class="split-view full-height">
                         <div class="panel" style="flex: 0 0 280px;">
                             <div class="panel-header glass-header flex-between">
                                 <span class="title">Discovered Endpoints</span>
-                                <button id="wsmap-scan-btn" class="btn primary small">Discover</button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="wsmap-live-btn" class="btn secondary small">Live Map</button>
+                                    <button id="wsmap-scan-btn" class="btn primary small">Discover</button>
+                                </div>
                             </div>
                             <div class="panel-body custom-scroll" id="wsmap-tree-container">
                                 <div class="empty-state">Enter a target HTTP URL above and click Discover to find
@@ -1313,6 +1478,68 @@
 
                 <!-- ═══════════════ WEB PENTEST VIEWS ═══════════════ -->
 
+                <!-- Web Operations Board -->
+                <div id="view-webworkspace" class="view slide-up">
+                    <div class="panel full-height">
+                        <div class="panel-header glass-header flex-between">
+                            <span class="title">Web Operations Board</span>
+                            <div id="web-workspace-active-chip" class="badge standard">DISCOVERY WORKSPACE</div>
+                        </div>
+                        <div class="panel-body custom-scroll" style="padding: 16px;">
+                            <div id="web-workspace-hero"
+                                style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding: 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.95)); margin-bottom: 14px;">
+                                <div>
+                                    <div id="web-workspace-title"
+                                        style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                                        Discovery Workspace
+                                    </div>
+                                    <div id="web-workspace-subtitle"
+                                        style="font-size: 12px; color: var(--text-secondary); max-width: 720px; line-height: 1.6;">
+                                        Map authenticated surface area, bootstrap sessions, and turn captured HTTP traffic into reusable project intelligence.
+                                    </div>
+                                </div>
+                                <div id="web-workspace-project"
+                                    style="font-size: 11px; color: var(--text-muted); text-align: right; min-width: 180px;">
+                                    No platform project linked yet.
+                                </div>
+                            </div>
+
+                            <div id="web-workspace-summary"
+                                style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px;">
+                            </div>
+
+                            <div class="split-view" style="height: auto; gap: 12px; align-items: stretch;">
+                                <div class="panel" style="flex: 1.1;">
+                                    <div class="panel-header glass-header flex-between">
+                                        <span class="title">Quick Launch</span>
+                                        <span id="web-workspace-quick-hint"
+                                            style="font-size: 10px; color: var(--text-muted);">Platform-backed actions</span>
+                                    </div>
+                                    <div class="panel-body custom-scroll" id="web-workspace-quickactions"
+                                        style="padding: 14px; min-height: 260px;"></div>
+                                </div>
+                                <div class="panel" style="flex: 0.9;">
+                                    <div class="panel-header glass-header flex-between">
+                                        <span id="web-workspace-feed-title" class="title">Recent Activity</span>
+                                        <span id="web-workspace-feed-meta"
+                                            style="font-size: 10px; color: var(--text-muted);">Waiting for project telemetry</span>
+                                    </div>
+                                    <div class="panel-body custom-scroll" id="web-workspace-recent"
+                                        style="padding: 14px; min-height: 260px;"></div>
+                                </div>
+                            </div>
+
+                            <div class="panel" style="margin-top: 12px;">
+                                <div class="panel-header glass-header flex-between">
+                                    <span class="title">Workspace Guidance</span>
+                                    <span style="font-size: 10px; color: var(--text-muted);">Cross-protocol aware</span>
+                                </div>
+                                <div class="panel-body" id="web-workspace-guidance" style="padding: 14px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- HTTP Forge -->
                 <div id="view-httpforge" class="view slide-up">
                     <div class="split-view" style="height: 100%;">
@@ -1333,6 +1560,10 @@
                                     <input type="text" id="http-url" placeholder="https://target.com/api/endpoint"
                                         style="flex: 1; min-width: 220px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 12px; min-height: unset; height: 28px;">
                                     <button id="http-send-btn" class="btn primary small">Send</button>
+                                    <button id="http-template-btn" class="btn secondary small">Template</button>
+                                    <button id="http-replay-btn" class="btn secondary small">Replay</button>
+                                    <button id="http-authz-diff-btn" class="btn secondary small">AuthZ Diff</button>
+                                    <button id="http-race-btn" class="btn secondary small">Race</button>
                                 </div>
                             </div>
                             <div class="panel-body custom-scroll" style="padding: 0;">
@@ -1350,6 +1581,39 @@
                                     <textarea id="http-body" class="code-area"
                                         style="height: 120px; width: 100%; resize: none;" spellcheck="false"
                                         placeholder='{"username": "admin", "password": "test"}'></textarea>
+                                </div>
+                                <div style="padding: 8px 12px; border-top: 1px solid var(--border-color); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                                    <div style="grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <select id="http-identity-select"
+                                            style="flex: 1 1 320px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;">
+                                            <option value="">Current Headers / Anonymous</option>
+                                        </select>
+                                        <button id="http-refresh-identities-btn" class="btn secondary small" style="white-space: nowrap; flex: 0 0 auto;">Refresh Identities</button>
+                                    </div>
+                                    <input type="text" id="http-template-name" placeholder="Template name (optional)"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;">
+                                    <input type="text" id="http-template-vars" placeholder='Replay vars JSON: {"csrf":"token"}'
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px; font-family: var(--font-mono);">
+                                    <select id="http-race-mode"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;">
+                                        <option value="duplicate_action">duplicate_action</option>
+                                        <option value="replay_before_invalidation">replay_before_invalidation</option>
+                                        <option value="stale_token_window">stale_token_window</option>
+                                        <option value="business_logic">business_logic</option>
+                                    </select>
+                                    <input type="number" id="http-race-concurrency" min="1" max="64" value="5"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Race concurrency">
+                                    <input type="number" id="http-race-waves" min="1" max="16" value="2"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Race waves">
+                                    <input type="number" id="http-race-stagger" min="0" max="5000" value="25"
+                                        style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px;"
+                                        title="Stagger ms">
+                                </div>
+                                <div id="http-attack-status"
+                                    style="padding: 8px 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-muted);">
+                                    HTTP Forge is project-aware. Build a replay template, diff it across identities, or run concurrent race attempts.
                                 </div>
                             </div>
                         </div>
@@ -2150,9 +2414,13 @@
                         <div class="panel-header glass-header flex-between">
                             <span class="title" style="color: var(--danger);">⛓ Attack Chainer</span>
                             <div style="display: flex; gap: 6px; align-items: center;">
+                                <select id="chain-identity-select"
+                                    style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; color: var(--text-primary); font-size: 11px; min-height: unset; height: 30px; min-width: 190px;">
+                                    <option value="">Workflow Default Identity</option>
+                                </select>
                                 <button id="chain-add-step" class="btn secondary small">+ Step</button>
                                 <button id="chain-exec-btn" class="btn primary small"
-                                    style="background: var(--danger);">Execute Chain</button>
+                                    style="background: var(--danger);">Execute Workflow</button>
                             </div>
                         </div>
                         <div class="panel-body custom-scroll" style="padding: 0;">
@@ -2660,8 +2928,20 @@
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="../node_modules/socket.io-client/dist/socket.io.min.js"></script>
+    <script src="modules/api.js"></script>
+    <script src="modules/identities.js"></script>
+    <script src="modules/traffic.js"></script>
+    <script src="modules/protocol.js"></script>
+    <script src="modules/attacks.js"></script>
+    <script src="modules/evidence.js"></script>
     <script src="renderer.js"></script>
+    <script src="modules/attacks_ui.js"></script>
+    <script src="modules/workbench.js"></script>
+    <script src="modules/web_pentest.js"></script>
+    <script src="modules/web_workspace.js"></script>
+    <script src="modules/cyber_node.js"></script>
+    <script src="modules/team_mode.js"></script>
 </body>
 
 </html>

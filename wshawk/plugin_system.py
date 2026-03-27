@@ -4,7 +4,7 @@ WSHawk Production-Grade Plugin System
 Lazy loading, sandboxing, validation, and advanced caching
 """
 
-import importlib
+import importlib.util
 import os
 import hashlib
 import json
@@ -13,6 +13,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
 from functools import lru_cache
 import threading
+import subprocess
+import sys
+import inspect
+from pathlib import Path
 
 @dataclass
 class PluginMetadata:
@@ -95,6 +99,42 @@ class ProtocolPlugin(PluginBase):
         """Return protocol name (e.g., 'protobuf', 'msgpack')"""
         return "custom"
 
+
+class _IsolatedPluginMixin:
+    def __init__(self, manager: "PluginManager", plugin_path: str, class_name: str, metadata: PluginMetadata):
+        self._manager = manager
+        self._metadata = metadata
+        self._wshawk_plugin_path = plugin_path
+        self._wshawk_class_name = class_name
+
+    def get_metadata(self) -> PluginMetadata:
+        return self._metadata
+
+    def _invoke(self, method_name: str, *args, **kwargs):
+        return self._manager._call_plugin_isolated(self, method_name, list(args), kwargs)
+
+
+class IsolatedPayloadPlugin(_IsolatedPluginMixin, PayloadPlugin):
+    def get_payloads(self, vuln_type: str) -> List[str]:
+        return self._invoke("get_payloads", vuln_type)
+
+
+class IsolatedDetectorPlugin(_IsolatedPluginMixin, DetectorPlugin):
+    def detect(self, response: str, payload: str, context: Dict = None) -> tuple[bool, str, str]:
+        return self._invoke("detect", response, payload, context)
+
+
+class IsolatedProtocolPlugin(_IsolatedPluginMixin, ProtocolPlugin):
+    def __init__(self, manager: "PluginManager", plugin_path: str, class_name: str, metadata: PluginMetadata, protocol_name: str):
+        super().__init__(manager, plugin_path, class_name, metadata)
+        self._protocol_name = protocol_name or metadata.name
+
+    def get_protocol_name(self) -> str:
+        return self._protocol_name
+
+    async def handle_message(self, message: str, context: Dict = None) -> str:
+        return self._invoke("handle_message", message, context)
+
 class PluginManager:
     """
     Production-grade plugin manager with:
@@ -128,6 +168,10 @@ class PluginManager:
         
         # Override policy
         self.allow_override = False  # Set to True to allow plugin replacement
+        self.enable_process_isolation = True
+        self.plugin_timeout_s = 5.0
+        self.max_plugin_file_bytes = 2 * 1024 * 1024
+        self.max_isolated_request_bytes = 128 * 1024
         
         # Initialize
         self._ensure_directories()
@@ -147,6 +191,14 @@ class PluginManager:
             if filename.endswith('.py') and not filename.startswith('_'):
                 plugin_name = filename[:-3]
                 plugin_path = os.path.join(self.plugin_dir, filename)
+                if not os.path.isfile(plugin_path):
+                    continue
+                try:
+                    if os.path.getsize(plugin_path) > self.max_plugin_file_bytes:
+                        print(f"[WARNING] Skipping oversized plugin file: {plugin_name}")
+                        continue
+                except OSError:
+                    continue
                 
                 # Calculate checksum
                 with open(plugin_path, 'rb') as f:
@@ -174,32 +226,61 @@ class PluginManager:
                 return False
             
             try:
-                # Security: Load in a restricted namespace if it's a script file
-                # Get the relative module path based on the directory name
-                dir_basename = os.path.basename(self.plugin_dir)
-                module = importlib.import_module(f"wshawk.{dir_basename}.{plugin_name}")
-                
-                # Find plugin classes
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if (isinstance(attr, type) and 
-                        issubclass(attr, PluginBase) and 
-                        attr not in (PluginBase, PayloadPlugin, DetectorPlugin, ProtocolPlugin)):
-                        
-                        plugin_instance = attr()
-                        
-                        # Validate metadata
+                plugin_path = self._available_plugins[plugin_name]
+                if self.enable_process_isolation:
+                    inspected_plugins = self._inspect_plugin_isolated(plugin_path)
+                    for inspected in inspected_plugins:
+                        metadata = PluginMetadata.from_dict(inspected["metadata"])
+                        plugin_class_name = inspected["class_name"]
+                        plugin_type = inspected["plugin_type"]
+                        if plugin_type == "payload":
+                            plugin_instance = IsolatedPayloadPlugin(self, plugin_path, plugin_class_name, metadata)
+                        elif plugin_type == "detector":
+                            plugin_instance = IsolatedDetectorPlugin(self, plugin_path, plugin_class_name, metadata)
+                        elif plugin_type == "protocol":
+                            plugin_instance = IsolatedProtocolPlugin(
+                                self,
+                                plugin_path,
+                                plugin_class_name,
+                                metadata,
+                                inspected.get("protocol_name", ""),
+                            )
+                        else:
+                            continue
+
                         if not self._validate_plugin(plugin_instance):
                             print(f"[ERROR] Plugin {plugin_name} failed validation")
                             continue
-                        
-                        # Wrap methods in sandboxed executor
-                        self._sandbox_plugin_methods(plugin_instance)
-                        
-                        # Register plugin
                         if not self._register_plugin_internal(plugin_instance):
                             print(f"[ERROR] Plugin {plugin_name} registration failed")
                             continue
+                else:
+                    module = self._load_module_from_path(plugin_name, plugin_path)
+
+                    # Find plugin classes
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
+                        if (isinstance(attr, type) and
+                            issubclass(attr, PluginBase) and
+                            attr not in (PluginBase, PayloadPlugin, DetectorPlugin, ProtocolPlugin)):
+
+                            plugin_instance = attr()
+
+                            # Validate metadata
+                            if not self._validate_plugin(plugin_instance):
+                                print(f"[ERROR] Plugin {plugin_name} failed validation")
+                                continue
+
+                            plugin_instance._wshawk_plugin_path = plugin_path
+                            plugin_instance._wshawk_class_name = attr.__name__
+
+                            # Wrap methods in sandboxed executor
+                            self._sandbox_plugin_methods(plugin_instance)
+
+                            # Register plugin
+                            if not self._register_plugin_internal(plugin_instance):
+                                print(f"[ERROR] Plugin {plugin_name} registration failed")
+                                continue
                 
                 self._loaded_plugins.add(plugin_name)
                 return True
@@ -208,21 +289,112 @@ class PluginManager:
                 print(f"[ERROR] Failed to load plugin {plugin_name}: {e}")
                 return False
 
+    def _load_module_from_path(self, plugin_name: str, plugin_path: str):
+        checksum = self._plugin_checksums.get(plugin_name, "")[:12] or "runtime"
+        module_name = f"wshawk_dynamic_plugin_{plugin_name}_{checksum}"
+        if module_name in sys.modules:
+            return sys.modules[module_name]
+
+        spec = importlib.util.spec_from_file_location(module_name, plugin_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Unable to load plugin spec for {plugin_name}")
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+
     def _sandbox_plugin_methods(self, plugin: PluginBase):
         """Wrap plugin methods in a safe executor context."""
-        for attr_name in dir(plugin):
-            if attr_name.startswith('_'): continue
+        execution_methods = {"detect", "get_payloads", "handle_message"}
+        for attr_name in execution_methods:
+            if not hasattr(plugin, attr_name):
+                continue
             attr = getattr(plugin, attr_name)
             if callable(attr):
-                # Wrap the method
-                setattr(plugin, attr_name, self._create_safe_wrapper(attr, plugin.get_name()))
+                setattr(plugin, attr_name, self._create_safe_wrapper(attr, plugin.get_name(), plugin))
 
-    def _create_safe_wrapper(self, func: Callable, plugin_name: str) -> Callable:
+    def _run_plugin_runner(self, request: Dict[str, Any]) -> Any:
+        payload = json.dumps(request)
+        if len(payload.encode("utf-8")) > self.max_isolated_request_bytes:
+            raise RuntimeError("plugin invocation exceeded request size limit")
+
+        repo_root = str(Path(__file__).resolve().parents[1])
+        safe_env = {
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+            "PYTHONNOUSERSITE": "1",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        }
+        for key in ("VIRTUAL_ENV", "SYSTEMROOT", "WINDIR", "HOME", "TMPDIR", "TMP", "TEMP"):
+            value = os.environ.get(key)
+            if value:
+                safe_env[key] = value
+
+        runner_cmd = [sys.executable, "--plugin-runner"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "wshawk.plugin_runner"]
+
+        proc = subprocess.run(
+            runner_cmd,
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=self.plugin_timeout_s,
+            check=False,
+            cwd=repo_root,
+            env=safe_env,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "isolated plugin execution failed")
+
+        response = json.loads(proc.stdout or "{}")
+        if not response.get("ok"):
+            raise RuntimeError(response.get("error", "isolated plugin execution failed"))
+        return response.get("result")
+
+    def _inspect_plugin_isolated(self, plugin_path: str) -> List[Dict[str, Any]]:
+        result = self._run_plugin_runner({
+            "action": "inspect",
+            "plugin_path": plugin_path,
+        })
+        return result if isinstance(result, list) else []
+
+    def _call_plugin_isolated(self, plugin: PluginBase, method_name: str, args, kwargs):
+        plugin_path = getattr(plugin, "_wshawk_plugin_path", "")
+        class_name = getattr(plugin, "_wshawk_class_name", "")
+        if not plugin_path or not class_name:
+            raise RuntimeError("Plugin isolation metadata missing")
+
+        result = self._run_plugin_runner({
+            "action": "invoke",
+            "plugin_path": plugin_path,
+            "class_name": class_name,
+            "method_name": method_name,
+            "args": args,
+            "kwargs": kwargs,
+        })
+        if method_name == "detect" and isinstance(result, list):
+            return tuple(result)
+        return result
+
+    def _create_safe_wrapper(self, func: Callable, plugin_name: str, plugin: PluginBase) -> Callable:
         """Create a wrapper that catches exceptions and potentially enforces limits."""
+        if inspect.iscoroutinefunction(func):
+            async def safe_async_call(*args, **kwargs):
+                try:
+                    if self.enable_process_isolation and func.__name__ == "handle_message":
+                        return self._call_plugin_isolated(plugin, func.__name__, args, kwargs)
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    print(f"[CRITICAL] Plugin {plugin_name} crashed during execution: {e}")
+                    if func.__name__ == "handle_message":
+                        return args[0] if args else ""
+                    return None
+            return safe_async_call
+
         def safe_call(*args, **kwargs):
             try:
-                # In production, we could use multiprocessing here for true process isolation,
-                # but for now we focus on crash-resilience.
+                if self.enable_process_isolation and func.__name__ in {"detect", "get_payloads"}:
+                    return self._call_plugin_isolated(plugin, func.__name__, args, kwargs)
                 return func(*args, **kwargs)
             except Exception as e:
                 print(f"[CRITICAL] Plugin {plugin_name} crashed during execution: {e}")
@@ -444,6 +616,33 @@ class PluginManager:
                 print(f"[ERROR] Detector {plugin.get_name()} failed: {e}")
         
         return results
+
+    async def handle_protocol_message(self, protocol_name: str, message: str, context: Dict = None) -> str:
+        """Run the first matching protocol plugin against a message."""
+        protocol_name = (protocol_name or "").strip().lower()
+        context = context or {}
+
+        for name in self._available_plugins:
+            if name not in self._loaded_plugins:
+                self._load_plugin_lazy(name)
+
+        for plugin in self._protocol_plugins.values():
+            plugin_protocol = ""
+            try:
+                plugin_protocol = str(plugin.get_protocol_name() or "").strip().lower()
+            except Exception:
+                plugin_protocol = ""
+
+            if protocol_name not in {plugin.get_name().lower(), plugin_protocol}:
+                continue
+
+            try:
+                return await plugin.handle_message(message, context)
+            except Exception as e:
+                print(f"[ERROR] Protocol plugin {plugin.get_name()} failed: {e}")
+                return message
+
+        return message
     
     def list_plugins(self, loaded_only: bool = False) -> Dict:
         """

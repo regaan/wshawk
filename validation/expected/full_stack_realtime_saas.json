@@ -1,0 +1,9 @@
+{
+  "required_checks": {
+    "duplicate_refund_race_possible": true,
+    "login_sets_cookie": true,
+    "preview_leaks_foreign_invoice": true,
+    "refund_denied_without_token": true,
+    "refund_replay_succeeds_with_token": true
+  }
+}

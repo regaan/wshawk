@@ -1,197 +1,111 @@
-# Session Security Tests
+# WSHawk v4 Session Security Testing
 
-WSHawk includes 6 advanced session security tests to detect session hijacking and authentication bypass vulnerabilities.
+WSHawk still ships a session-focused testing module in:
 
-## 1. Token Reuse
-**CVSS Score:** 7.5 (High)
+- `wshawk/session_hijacking_tester.py`
 
-Tests if authentication tokens can be reused after session termination.
+This module belongs to the compatibility scanner path and is also invoked by `WSHawkV2.run_heuristic_scan()`.
 
-**What it tests:**
-- Captures authentication token during login
-- Closes the session
-- Attempts to reuse the token in a new session
+For newer v4 identity workflows, use the desktop app for:
 
-**Vulnerable if:**
-- Token accepted after session close
-- No token expiration
-- No session invalidation on logout
+- project-backed identity storage
+- replay across identities
+- AuthZ diff
+- race testing
+- evidence collection
 
-**Recommendation:**
-- Invalidate tokens on logout
-- Implement token expiration (TTL)
-- Use short-lived tokens with refresh mechanism
+The session tester is still useful when you want a direct WebSocket-focused check against session handling.
 
-## 2. Subscription Spoofing
-**CVSS Score:** 8.1 (High)
+---
 
-Tests if users can subscribe to unauthorized channels.
+## Covered Test Areas
 
-**What it tests:**
-- Attempts to subscribe to admin channels
-- Tests private channel access
-- Path traversal in channel names
+| Test | What It Checks |
+|---|---|
+| **Token Reuse** | whether a captured token still works after session termination |
+| **Subscription Spoofing** | whether unauthorized channels or topics can be subscribed to |
+| **Impersonation** | whether client-supplied identity fields are trusted |
+| **Channel Boundary Violation** | whether private or cross-user channels leak data |
+| **Session Fixation** | whether the server accepts attacker-supplied session identifiers |
+| **Privilege Escalation** | whether role or permission fields can be elevated client-side |
 
-**Test channels:**
-- `admin`
-- `private_user_123`
-- `system`
-- `../admin`
+---
 
-**Vulnerable if:**
-- Subscription succeeds without authorization
-- No channel access control
-- Channel names not validated
+## Run the Tester Directly
 
-**Recommendation:**
-- Implement strict channel access control
-- Validate user permissions before subscription
-- Use ACLs for channel access
-
-## 3. Impersonation
-**CVSS Score:** 9.1 (Critical)
-
-Tests if users can impersonate other users.
-
-**What it tests:**
-- Sending messages as other users
-- Updating other users' profiles
-- Accessing other users' data
-
-**Attack vectors:**
-- `from_user` parameter manipulation
-- `user_id` spoofing
-- Profile update attacks
-
-**Vulnerable if:**
-- Server trusts client-provided user IDs
-- No server-side identity validation
-- User context not enforced
-
-**Recommendation:**
-- Never trust client-provided user IDs
-- Validate user identity server-side
-- Use session-based user context
-
-## 4. Channel Boundary Violations
-**CVSS Score:** 8.6 (High)
-
-Tests if users can access other users' private channels.
-
-**What it tests:**
-- Reading private channels
-- Accessing DM conversations
-- Cross-user message reading
-
-**Test scenarios:**
-- `user:user2:private`
-- `dm:user2_user3`
-- Private channel history
-
-**Vulnerable if:**
-- Private data accessible without authorization
-- No channel permission checks
-- Cross-user data leakage
-
-**Recommendation:**
-- Implement strict channel access control
-- Validate user permissions for all operations
-- Enforce channel boundaries
-
-## 5. Session Fixation
-**CVSS Score:** 7.8 (High)
-
-Tests if attackers can set their own session IDs.
-
-**What it tests:**
-- Providing session ID during login
-- Setting custom session IDs
-- Session ID prediction
-
-**Vulnerable if:**
-- Server accepts client-provided session IDs
-- Session IDs are predictable
-- No server-side session generation
-
-**Recommendation:**
-- Generate session IDs server-side only
-- Use cryptographically random session IDs
-- Never accept client-provided session IDs
-
-## 6. Privilege Escalation
-**CVSS Score:** 9.8 (Critical)
-
-Tests if users can elevate their privileges.
-
-**What it tests:**
-- Role manipulation (`role: admin`)
-- Permission elevation
-- Admin access attempts
-
-**Attack vectors:**
-- `update_role` with `role: admin`
-- `set_permissions` with admin permissions
-- Login with elevated role
-
-**Vulnerable if:**
-- Server accepts client-provided roles
-- No server-side role validation
-- Permissions can be manipulated
-
-**Recommendation:**
-- Enforce server-side role validation
-- Never trust client-provided role/permission data
-- Implement proper RBAC (Role-Based Access Control)
-
-## Running Session Tests
-
-### Standalone
-```bash
-python -c "
+```python
 import asyncio
 from wshawk.session_hijacking_tester import SessionHijackingTester
 
-async def test():
-    tester = SessionHijackingTester('ws://target.com')
+
+async def run():
+    tester = SessionHijackingTester("wss://target.example/ws")
     results = await tester.run_all_tests()
-    report = tester.generate_report()
-    print(f'Vulnerabilities: {report[\"summary\"][\"vulnerable\"]}')
 
-asyncio.run(test())
-"
+    for result in results:
+        verdict = "VULNERABLE" if result.is_vulnerable else "OK"
+        print(verdict, result.vuln_type.value, result.cvss_score)
+
+
+asyncio.run(run())
 ```
 
-### Included in Full Scan
-Session tests run automatically with:
-- `wshawk ws://target.com`
-- `wshawk-interactive`
-- `wshawk-advanced ws://target.com`
+If the target needs a specific login shape, pass `auth_config` when you build the tester.
 
-## Understanding Results
+Example:
 
-### Report Format
-```json
-{
-  "summary": {
-    "total_tests": 6,
-    "vulnerable": 3,
-    "critical_vulnerabilities": 2,
-    "risk_level": "CRITICAL"
-  },
-  "vulnerabilities": [
-    {
-      "type": "impersonation",
-      "cvss_score": 9.1,
-      "confidence": "CRITICAL",
-      "description": "User impersonation possible",
-      "recommendation": "Validate user identity server-side"
-    }
-  ]
-}
+```python
+tester = SessionHijackingTester(
+    "wss://target.example/ws",
+    auth_config={
+        "action": "login",
+        "username_field": "username",
+        "password_field": "password",
+        "username": "alice",
+        "password": "alice123",
+    },
+)
 ```
 
-### Risk Levels
-- **CRITICAL** - Immediate action required
-- **HIGH** - Fix as soon as possible
-- **MEDIUM** - Plan remediation
-- **LOW** - Monitor and fix when convenient
+---
+
+## Scanner Integration
+
+If you run the compatibility scanner:
+
+```bash
+wshawk wss://target.example/ws
+```
+
+the scanner will attempt the session tester near the end of `run_heuristic_scan()` and merge vulnerable results into the scan findings list.
+
+That means the session tester still matters even if you do not call it directly.
+
+---
+
+## What the Results Mean
+
+Each result is a `SessionTestResult` with:
+
+- `vuln_type`
+- `is_vulnerable`
+- `confidence`
+- `description`
+- `evidence`
+- `recommendation`
+- `cvss_score`
+
+The exact result quality depends on how well the target accepts the tester's assumptions about login and message format. Targets with unusual auth bootstraps often work better through the desktop app, browser companion, and identity vault flow.
+
+---
+
+## When to Prefer v4 Project Workflows
+
+Use the desktop app instead of only the session tester when:
+
+- the target mixes HTTP bootstrap with WebSocket actions
+- you need multiple identities in the same operation
+- you want replay recipes and exported evidence
+- you need AuthZ diff or race testing against stored identities
+
+For that workflow, see [Desktop v4 Full Feature Guide](DESKTOP_V4_GUIDE.md).

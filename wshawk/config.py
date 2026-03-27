@@ -11,6 +11,8 @@ import copy
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from wshawk.secret_store import SecretStore
+
 try:
     import yaml
 except ImportError:
@@ -25,8 +27,8 @@ DEFAULT_CONFIG = {
         'timeout': 5,
         'learning_duration': 5,
         'max_payload_count': 100,
-        'verify_ssl': False,
-        'user_agent': 'WSHawk/3.0.1',
+        'verify_ssl': True,
+        'user_agent': 'WSHawk/4.0.0',
         'features': {
             'playwright': False,
             'oast': True,
@@ -257,6 +259,10 @@ class WSHawkConfig:
                     return f.read().strip()
             except (IOError, OSError):
                 return ''
+
+        # secret:namespace:key — read from platform-aware secret storage
+        if value.startswith('secret:'):
+            return SecretStore.resolve_reference(value, default='')
         
         return value
     
@@ -325,7 +331,7 @@ scanner:
   timeout: 5
   learning_duration: 5
   max_payload_count: 100
-  verify_ssl: false
+  verify_ssl: true
     features:
       playwright: false
       oast: true

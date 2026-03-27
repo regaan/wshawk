@@ -11,7 +11,16 @@ contextBridge.exposeInMainWorld('api', {
         }
     },
     receive: (channel, func) => {
-        let validChannels = ['fromMain', 'scan_update', 'vulnerability_found', 'scan_progress', 'intercepted_frame'];
+        let validChannels = [
+            'fromMain',
+            'scan_update',
+            'vulnerability_found',
+            'scan_progress',
+            'intercepted_frame',
+            'bridge-port',
+            'bridge-ready',
+            'sidecar-error',
+        ];
         if (validChannels.includes(channel)) {
             // Deliberately strip event as it includes `sender` 
             ipcRenderer.on(channel, (event, ...args) => func(...args));

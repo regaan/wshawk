@@ -212,7 +212,7 @@ class WebhookNotifier:
         blocks.append({
             "type": "context",
             "elements": [
-                {"type": "mrkdwn", "text": f"_WSHawk V3.0.2 by Regaan | {datetime.now().strftime('%Y-%m-%d %H:%M')}_ "}
+                {"type": "mrkdwn", "text": f"_WSHawk V4.0.0 by Regaan | {datetime.now().strftime('%Y-%m-%d %H:%M')}_ "}
             ]
         })
         
@@ -274,7 +274,7 @@ class WebhookNotifier:
             "color": color_map.get(highest, 0x808080),
             "fields": fields,
             "footer": {
-                "text": f"WSHawk V3.0.2 by Regaan • {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                "text": f"WSHawk V4.0.0 by Regaan • {datetime.now().strftime('%Y-%m-%d %H:%M')}"
             },
             "thumbnail": {
                 "url": "https://github.com/regaan.png"
@@ -355,7 +355,7 @@ class WebhookNotifier:
         """Build generic JSON webhook payload."""
         return {
             'event': 'scan_complete',
-            'scanner': 'WSHawk V3.0.2',
+            'scanner': 'WSHawk V4.0.0',
             'timestamp': datetime.now().isoformat(),
             'scan_info': {
                 'target': scan_info.get('target', 'Unknown'),

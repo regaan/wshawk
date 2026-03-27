@@ -73,7 +73,7 @@ class WSEndpointDiscovery:
                  timeout: int = 10,
                  max_depth: int = 2,
                  headers: Optional[Dict] = None,
-                 verify_ssl: bool = False):
+                 verify_ssl: bool = True):
         """
         Args:
             target: Base HTTP(S) URL to scan (e.g., https://example.com)

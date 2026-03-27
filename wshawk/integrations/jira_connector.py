@@ -318,7 +318,7 @@ class JiraIntegration:
             f"|CVSS Vector|{vuln.get('cvss_vector', 'N/A')}|\n"
             f"|Target|{scan_info.get('target', 'Unknown')}|\n"
             f"|Browser Verified|{'Yes ✅' if vuln.get('browser_verified') else 'No'}|\n"
-            f"|Scanner|WSHawk v2.0.7|\n\n"
+            f"|Scanner|WSHawk v4.0.0|\n\n"
             f"h3. Description\n"
             f"{vuln.get('description', 'N/A')}\n\n"
             f"h3. Payload\n"

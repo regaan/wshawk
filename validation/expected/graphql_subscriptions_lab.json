@@ -1,0 +1,9 @@
+{
+  "required_checks": {
+    "graphql_acknowledged": true,
+    "graphql_cross_tenant_invoice_subscription": true,
+    "graphql_cross_tenant_message_subscription": true,
+    "graphql_refund_denied_without_token": true,
+    "graphql_refund_replay_succeeds_with_token": true
+  }
+}

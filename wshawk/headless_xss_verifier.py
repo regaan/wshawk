@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 WSHawk Headless Browser XSS Verifier
-Uses Playwright to verify actual XSS execution
+Uses Playwright to collect sandboxed browser execution evidence
 """
 
 import asyncio

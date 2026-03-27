@@ -1,0 +1,9 @@
+{
+  "required_checks": {
+    "socketio_connects_with_token": true,
+    "socketio_cross_tenant_message_exposure": true,
+    "socketio_cross_tenant_order_exposure": true,
+    "socketio_refund_denied_without_token": true,
+    "socketio_refund_replay_succeeds_with_token": true
+  }
+}

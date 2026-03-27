@@ -104,6 +104,7 @@ class AuthFlow:
             "target_ws_url": self.target_ws_url,
             "steps": [asdict(s) for s in self.steps],
             "cookies": self.cookies,
+            "local_storage": self.local_storage,
             "extracted_tokens": self.extracted_tokens,
             "ws_headers": self.ws_headers,
             "recorded_at": self.recorded_at,
@@ -181,8 +182,8 @@ class BrowserPool:
             elif len(self._in_use) < self._max_contexts:
                 ctx = await self._browser.new_context(
                     java_script_enabled=True,
-                    ignore_https_errors=True,
-                    bypass_csp=True,
+                    ignore_https_errors=False,
+                    bypass_csp=False,
                 )
             else:
                 # Wait for a context to be released
@@ -261,7 +262,7 @@ class XSSVerifier:
     - console.log beacons
     - Mutation observer detections
 
-    Zero false positives: if the browser didn't execute it, it's not XSS.
+    This supplements heuristic detection with sandboxed browser evidence.
     """
 
     # Token embedded in the test page to detect our payloads
@@ -571,7 +572,7 @@ class AuthFlowRecorder:
         ctx = await browser.new_context(
             viewport={"width": 1280, "height": 900},
             record_har_path=None,  # We'll capture manually
-            ignore_https_errors=True,
+            ignore_https_errors=False,
         )
 
         page = await ctx.new_page()
@@ -829,6 +830,7 @@ class DOMInvader:
                 login_url=flow_data.get("login_url", ""),
                 target_ws_url=flow_data.get("target_ws_url", ""),
                 cookies=flow_data.get("cookies", []),
+                local_storage=flow_data.get("local_storage", {}),
                 extracted_tokens=flow_data.get("extracted_tokens", {}),
                 ws_headers=flow_data.get("ws_headers", {}),
                 steps=[

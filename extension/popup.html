@@ -1,29 +1,152 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="utf-8">
     <title>WSHawk Companion</title>
     <style>
-        body { width: 250px; font-family: sans-serif; padding: 15px; background: #1a1a1a; color: #fff; }
-        h3 { color: #00ff00; margin-top: 0; }
-        .status { margin-bottom: 10px; font-size: 13px; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 12px; color: #aaa; }
-        input[type="text"] { width: 100%; padding: 5px; background: #333; border: 1px solid #444; color: #fff; box-sizing: border-box; }
-        .toggle-btn { width: 100%; padding: 8px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; }
-        .btn-on { background: #00ff00; color: #000; }
-        .btn-off { background: #ff3333; color: #fff; }
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            width: 320px;
+            margin: 0;
+            padding: 14px;
+            font-family: sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        h3 {
+            margin: 0 0 12px;
+            color: #22d3ee;
+            font-size: 16px;
+        }
+
+        .status {
+            margin-bottom: 12px;
+            padding: 10px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.8);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 7px 8px;
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            box-sizing: border-box;
+            font-size: 12px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #cbd5e1;
+        }
+
+        .checkbox-row label {
+            margin: 0;
+            font-size: 12px;
+            text-transform: none;
+            letter-spacing: normal;
+            color: #cbd5e1;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toggle-btn,
+        .secondary-btn {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .btn-on {
+            background: #10b981;
+            color: #052e2b;
+        }
+
+        .btn-off {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .secondary-btn {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+        }
+
+        .hint {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
     <h3>WSHawk Companion</h3>
-    <div class="status" id="statusText">Status: Capturing</div>
+
+    <div class="status" id="statusText">Loading extension state...</div>
+
     <div class="control-group">
-        <button id="toggleBtn" class="toggle-btn btn-on">STOP CAPTURING</button>
+        <div class="button-row">
+            <button id="toggleBtn" class="toggle-btn btn-on">STOP CAPTURING</button>
+            <button id="detectBtn" class="secondary-btn">AUTO-DETECT</button>
+        </div>
     </div>
+
+    <div class="control-group checkbox-row">
+        <input type="checkbox" id="autoDetectBridge" checked>
+        <label for="autoDetectBridge">Auto-detect bridge on localhost:8080-8089</label>
+    </div>
+
     <div class="control-group">
-        <label>Bridge URL:</label>
-        <input type="text" id="bridgeUrl" value="http://127.0.0.1:5000/api/interceptor/handshake">
+        <label for="bridgeUrl">Bridge Handshake URL</label>
+        <input type="text" id="bridgeUrl" placeholder="http://127.0.0.1:8080/api/extension/ingest/handshake">
+        <div class="hint">Leave this blank to rely on auto-detection.</div>
     </div>
+
+    <div class="control-group">
+        <label for="projectId">Project ID (optional)</label>
+        <input type="text" id="projectId" placeholder="Attach captured handshakes to a WSHawk project">
+    </div>
+
+    <div class="control-group">
+        <label for="captureScopes">Capture Domains</label>
+        <input type="text" id="captureScopes" placeholder="example.com, api.example.com">
+        <div class="hint">Required. Capture runs only for these domains and their subdomains.</div>
+    </div>
+
     <script src="popup.js"></script>
 </body>
 </html>

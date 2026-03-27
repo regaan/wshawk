@@ -1,6 +1,6 @@
 {
   "name": "wshawk",
-  "version": "3.0.6",
+  "version": "4.0.0",
   "description": "WSHawk - Advanced WebSocket Security Scanner",
   "homepage": "https://github.com/regaan/wshawk",
   "repository": {
@@ -10,8 +10,10 @@
   "main": "index.js",
   "scripts": {
     "start": "electron .",
+    "smoke": "node scripts/smoke-check.js",
     "dist": "electron-builder",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "security:release-checks": "python ../scripts/release_security_checks.py"
   },
   "keywords": [
     "websocket",

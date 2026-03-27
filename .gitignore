@@ -74,7 +74,8 @@ sessions/
 # OS
 Thumbs.db
 .DS_Store
-
+.electron_tmp/
+.electron_runtime/
 # Project specific
 test_results/
 scan_results/
@@ -86,21 +87,18 @@ scan_results/
 *.pem
 *.crt
 secrets.json
+.wshawk-secrets/
+.secret_store/
 # WSHawk Production
 scans.db
 scans.db-wal
 scans.db-shm
 wshawk.yaml
-wshawk.yaml.example
 .env
 .wshawk/
 
 # Exported formats
-*.json
-*.csv
 *.sarif
-!pyproject.toml
-!package.json
 
 # Documentation builds
 docs/_build/
@@ -111,6 +109,7 @@ desktop/dist/
 desktop/bin/
 desktop/node_modules/
 desktop/out/
+desktop/reports/
 
 # Debian & Repository Artifacts
 repo/
@@ -129,3 +128,7 @@ debian/wshawk.substvars
 PKGBUILD
 .SRCINFO
 debian/
+
+# Validation run outputs
+validation/artifacts/*
+!validation/artifacts/README.md

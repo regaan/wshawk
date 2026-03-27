@@ -1,124 +1,219 @@
-# Advanced Usage
+# WSHawk v4 Advanced Usage
 
-## Python API
+This guide focuses on current module-level usage for the repo as it exists today.
 
-### Basic Scan
+Two things matter up front:
+
+- the compatibility scanner path is still available through `wshawk.scanner_v2.WSHawkV2`
+- the most complete v4 workflows for replay, AuthZ diff, race testing, and evidence collection are primarily driven through the desktop app and local daemon
+
+If you want the operator workflow, start with [Desktop v4 Full Feature Guide](DESKTOP_V4_GUIDE.md). If you want current architecture and route layout, see [WSHawk v4 Complete Guide](V4_COMPLETE_GUIDE.md).
+
+---
+
+## Scanner API
+
+Use `WSHawkV2` when you want the compatibility scanner path from Python.
+
+### Minimal Scan
+
 ```python
 import asyncio
 from wshawk.scanner_v2 import WSHawkV2
 
-async def scan():
-    scanner = WSHawkV2("ws://target.com", max_rps=10)
-    await scanner.run_intelligent_scan()
 
-asyncio.run(scan())
+async def run():
+    scanner = WSHawkV2("wss://target.example/ws", max_rps=5)
+    scanner.use_headless_browser = False
+    scanner.use_oast = False
+
+    findings = await scanner.run_heuristic_scan()
+    print(f"Findings: {len(findings)}")
+
+    for finding in findings[:5]:
+        print(f"[{finding.get('confidence', 'UNKNOWN')}] {finding.get('type', 'unknown')}")
+
+
+asyncio.run(run())
 ```
 
-### Full Features Enabled
+### Scanner Toggles
+
+These current attributes exist on `WSHawkV2`:
+
+- `use_headless_browser`
+- `use_oast`
+- `use_smart_payloads`
+- `use_ai`
+
+Example:
+
 ```python
-scanner = WSHawkV2("ws://target.com")
-scanner.use_headless_browser = True  # Playwright XSS
-scanner.use_oast = True              # OAST for blind vulns
-await scanner.run_intelligent_scan()
+scanner = WSHawkV2("wss://target.example/ws")
+scanner.use_headless_browser = True
+scanner.use_oast = True
+scanner.use_smart_payloads = True
 ```
 
-### Session Hijacking Tests
+### Configuration-Driven Scanner
+
 ```python
+import asyncio
+from wshawk.config import WSHawkConfig
+from wshawk.scanner_v2 import WSHawkV2
+
+
+async def run():
+    config = WSHawkConfig.load()
+    config.set("scanner.rate_limit", 3)
+    config.set("scanner.timeout", 8)
+    config.set("scanner.verify_ssl", True)
+
+    scanner = WSHawkV2("wss://target.example/ws", config=config)
+    scanner.use_headless_browser = False
+    findings = await scanner.run_heuristic_scan()
+    print(len(findings))
+
+
+asyncio.run(run())
+```
+
+---
+
+## Session Security Tester
+
+The session security module still exists as a standalone component in:
+
+- `wshawk/session_hijacking_tester.py`
+
+Use it directly when you want to exercise the older session-focused checks without running the full scanner.
+
+```python
+import asyncio
 from wshawk.session_hijacking_tester import SessionHijackingTester
 
-async def test_sessions():
-    tester = SessionHijackingTester("ws://target.com")
-    results = await tester.run_all_tests()
-    report = tester.generate_report()
-    
-    print(f"Vulnerabilities: {report['summary']['vulnerable']}")
-    for vuln in report['vulnerabilities']:
-        print(f"  - {vuln['type']}: CVSS {vuln['cvss_score']}")
 
-asyncio.run(test_sessions())
+async def run():
+    tester = SessionHijackingTester("wss://target.example/ws")
+    results = await tester.run_all_tests()
+
+    for result in results:
+        if result.is_vulnerable:
+            print(result.vuln_type.value, result.cvss_score, result.description)
+
+
+asyncio.run(run())
 ```
 
-### Payload Mutation
-```python
-from wshawk.payload_mutator_v3 import PayloadMutationEngineV3
+This module is also invoked near the end of `WSHawkV2.run_heuristic_scan()`.
 
-engine = PayloadMutationEngineV3()
-report = engine.generate(
+For newer project-backed identity workflows, prefer the desktop app and its replay, AuthZ diff, and race tooling.
+
+---
+
+## Payload Mutation
+
+The current payload mutation module is:
+
+- `wshawk.payload_mutator.PayloadMutator`
+
+### Strategy-Based Mutation
+
+```python
+from wshawk.payload_mutator import PayloadMutator, MutationStrategy
+
+mutator = PayloadMutator()
+
+variants = mutator.mutate_payload(
     "<script>alert(1)</script>",
-    context="xss",
-    max_total=20
+    MutationStrategy.TAG_BREAKING,
+    count=5,
 )
 
-for strategy, variants in report.by_strategy.items():
-    print(f"{strategy}: {len(variants)} payloads")
+for payload in variants:
+    print(payload)
 ```
 
-### CVSS Scoring
+### Adaptive Mutation
+
+```python
+from wshawk.payload_mutator import PayloadMutator
+
+mutator = PayloadMutator()
+
+adaptive = mutator.generate_adaptive_payloads("' OR 1=1--", max_count=10)
+for payload in adaptive:
+    print(payload)
+```
+
+### Learning From Responses
+
+```python
+from wshawk.payload_mutator import PayloadMutator
+
+mutator = PayloadMutator()
+
+mutator.learn_from_response(
+    payload="<script>alert(1)</script>",
+    response="403 Forbidden - Blocked by Cloudflare",
+    is_blocked=True,
+    response_time=0.02,
+)
+
+print(mutator.get_recommended_strategy().value)
+```
+
+---
+
+## CVSS Scoring
+
 ```python
 from wshawk.cvss_calculator import CVSSCalculator
 
 calc = CVSSCalculator()
 score = calc.calculate_for_vulnerability("SQL Injection", "HIGH")
-print(f"Score: {score.base_score} ({score.severity})")
-print(f"Vector: {score.vector_string}")
+
+print(score.base_score)
+print(score.severity)
+print(score.vector_string)
 ```
 
-## Custom Integrations
+---
 
-### Integration with CI/CD
+## Reporting Output
+
+The compatibility scanner path writes:
+
+- HTML output through `EnhancedHTMLReporter`
+- JSON / CSV / SARIF output through `ReportExporter`
+
+The default reporting directory is controlled through config:
+
 ```python
-import sys
+from wshawk.config import WSHawkConfig
 
-scanner = WSHawkV2("ws://staging.app.com")
-await scanner.run_intelligent_scan()
-
-# Fail build if critical vulns found
-critical = [v for v in scanner.vulnerabilities if v.get('confidence') == 'CRITICAL']
-if critical:
-    print(f"Found {len(critical)} critical vulnerabilities!")
-    sys.exit(1)
+config = WSHawkConfig.load()
+config.set("reporting.output_dir", "./reports")
+config.set("reporting.formats", ["html", "json", "sarif"])
 ```
 
-### Custom Reporting
-```python
-# Access raw vulnerability data
-for vuln in scanner.vulnerabilities:
-    print(f"Type: {vuln['type']}")
-    print(f"Severity: {vuln['confidence']}")
-    print(f"CVSS: {vuln.get('cvss_score', 'N/A')}")
-    print(f"Payload: {vuln['payload']}")
-```
+After a scan, the compatibility path will emit files such as:
 
-## Configuration
+- `reports/wshawk_report_<timestamp>.html`
+- additional JSON / CSV / SARIF files if those formats are enabled
 
-### Rate Limiting
-```python
-scanner = WSHawkV2("ws://target.com", max_rps=5)  # 5 requests/second
-```
+---
 
-### Disable Features
-```python
-scanner.use_headless_browser = False  # Faster, no Playwright
-scanner.use_oast = False              # No OAST testing
-```
+## When Not to Use the Python Scanner API
 
-## Advanced Scenarios
+Use the desktop app instead of direct module calls when you need:
 
-### Testing Multiple Endpoints
-```python
-endpoints = [
-    "ws://api.example.com/chat",
-    "ws://api.example.com/notifications",
-    "ws://api.example.com/updates"
-]
+- project-backed identities
+- HTTP replay templates
+- WebSocket replay with stored project context
+- AuthZ diff across identities
+- race testing
+- evidence bundle export and verification
+- browser companion pairing and scoped capture
 
-for endpoint in endpoints:
-    scanner = WSHawkV2(endpoint)
-    await scanner.run_intelligent_scan()
-```
-
-### Custom Headers
-```python
-# Note: Headers set via WebSocket connection parameters
-# See scanner_v2.py for implementation details
-```
+Those are v4 platform workflows, not just scanner API features.

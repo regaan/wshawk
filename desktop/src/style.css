@@ -22,8 +22,8 @@
     --danger-glow: rgba(239, 68, 68, 0.15);
     --warning: #f59e0b;
 
-    --font-sans: 'Inter', -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SFMono-Regular', 'Cascadia Code', 'Liberation Mono', monospace;
 
     --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.8);
@@ -45,6 +45,20 @@ body {
     height: 100vh;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
+}
+
+/* Native dropdown popups on Linux can ignore dark-theme intent and render
+   white text on a white menu. Force readable popup rows. */
+select option,
+select optgroup {
+    color: #111827;
+    background: #ffffff;
+}
+
+select option:checked,
+select option:hover {
+    color: #111827;
+    background: #dbeafe;
 }
 
 .titlebar {

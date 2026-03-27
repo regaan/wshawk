@@ -20,7 +20,7 @@ except ImportError:
 try:
     from .._version_info import __version__
 except ImportError:
-    __version__ = "3.0.1"
+    __version__ = "4.0.0"
 
 try:
     from ..__main__ import Logger
@@ -383,7 +383,7 @@ class DefectDojoIntegration:
         ]
         
         if vuln.get('browser_verified'):
-            parts.insert(0, "⚠️ **BROWSER VERIFIED** - This vulnerability was confirmed via headless browser execution.\n")
+            parts.insert(0, "⚠️ **BROWSER EVIDENCE** - This finding includes sandboxed headless browser execution evidence.\n")
         
         return '\n'.join(parts)
     
