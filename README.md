@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Playwright](https://img.shields.io/badge/Playwright-Supported-green.svg)](https://playwright.dev/)
 [![Desktop](https://img.shields.io/badge/Desktop-Linux%20%7C%20Windows%20%7C%20macOS-2563eb)](https://github.com/regaan/wshawk/tree/main/desktop)
-[![Desktop Installers](https://github.com/regaan/wshawk/actions/workflows/build.yml/badge.svg)](https://github.com/regaan/wshawk/actions/workflows/build.yml)
+[![Quality Gates](https://github.com/regaan/wshawk/actions/workflows/ci.yml/badge.svg)](https://github.com/regaan/wshawk/actions/workflows/ci.yml)
 [![Validation Labs](https://img.shields.io/badge/Validation-Local%20Labs%20Included-16a34a)](https://github.com/regaan/wshawk/tree/main/validation)
 
 **WSHawk** is an open-source toolkit for WebSocket security testing, web application penetration testing, and stateful attack validation. It combines a CLI scanner, web dashboard, Electron desktop app, browser companion, and project-backed workflows for authorized security assessments.
