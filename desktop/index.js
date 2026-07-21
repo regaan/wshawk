@@ -39,23 +39,23 @@ if (process.env.BASILISK_E2E && !process.env.WSHAWK_E2E) {
 if (WSHAWK_E2E || WSHAWK_DESKTOP_SMOKE) {
     process.env.LIBGL_ALWAYS_SOFTWARE = '1';
     app.disableHardwareAcceleration();
-    app.commandLine.appendSwitch('headless');
+    app.commandLine.appendSwitch('headless', 'new');
     app.commandLine.appendSwitch('disable-gpu');
     app.commandLine.appendSwitch('disable-gpu-compositing');
     app.commandLine.appendSwitch('disable-gpu-rasterization');
     app.commandLine.appendSwitch('disable-software-rasterizer');
     app.commandLine.appendSwitch('disable-dev-shm-usage');
-    app.commandLine.appendSwitch('ozone-platform', 'headless');
     app.commandLine.appendSwitch('use-gl', 'disabled');
     app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor,UseSkiaRenderer');
-    app.commandLine.appendSwitch('in-process-gpu');
-    app.commandLine.appendSwitch('single-process');
-    if (WSHAWK_E2E_NO_SANDBOX) {
-        app.commandLine.appendSwitch('no-sandbox');
+    app.commandLine.appendSwitch('disable-gpu-sandbox');
+    app.commandLine.appendSwitch('no-zygote');
+    app.commandLine.appendSwitch('no-sandbox');
+    if (process.platform === 'linux') {
+        app.commandLine.appendSwitch('ozone-platform', 'headless');
     }
 }
 
-if (!WSHAWK_E2E_NO_SANDBOX) {
+if (!WSHAWK_E2E_NO_SANDBOX && !WSHAWK_E2E && !WSHAWK_DESKTOP_SMOKE) {
     app.enableSandbox();
 }
 

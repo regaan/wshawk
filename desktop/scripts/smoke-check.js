@@ -35,10 +35,14 @@ delete env.ELECTRON_RUN_AS_NODE;
 
 const child = spawn(electronBinary, [
     `--user-data-dir=${profilePath}`,
+    '--headless=new',
     '--disable-gpu',
+    '--disable-gpu-sandbox',
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-dev-shm-usage',
+    '--no-zygote',
+    '--use-gl=disabled',
     desktopDir,
 ], {
     cwd: desktopDir,
