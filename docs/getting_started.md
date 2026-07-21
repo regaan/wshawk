@@ -19,6 +19,7 @@ pip install wshawk
 If you want browser-assisted XSS evidence collection or DOM-related flows:
 
 ```bash
+pip install "wshawk[browser]"
 playwright install chromium
 ```
 
@@ -27,7 +28,7 @@ playwright install chromium
 ```bash
 git clone https://github.com/regaan/wshawk
 cd wshawk
-pip install -e .
+python -m pip install -e ".[browser]"
 ```
 
 ---
@@ -48,7 +49,7 @@ Use this when the target is stateful, authenticated, or browser-driven.
 
 ```bash
 cd desktop
-npm install
+npm ci
 npm start
 ```
 

@@ -1,15 +1,25 @@
 # WSHawk - WebSocket Security Testing & Web Penetration Testing Toolkit
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10–3.13](https://img.shields.io/badge/python-3.10--3.13-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://badge.fury.io/py/wshawk.svg)](https://badge.fury.io/py/wshawk)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Playwright](https://img.shields.io/badge/Playwright-Supported-green.svg)](https://playwright.dev/)
 [![Desktop](https://img.shields.io/badge/Desktop-Linux%20%7C%20Windows%20%7C%20macOS-2563eb)](https://github.com/regaan/wshawk/tree/main/desktop)
+[![Desktop Installers](https://github.com/regaan/wshawk/actions/workflows/build.yml/badge.svg)](https://github.com/regaan/wshawk/actions/workflows/build.yml)
 [![Validation Labs](https://img.shields.io/badge/Validation-Local%20Labs%20Included-16a34a)](https://github.com/regaan/wshawk/tree/main/validation)
 
 **WSHawk** is an open-source toolkit for WebSocket security testing, web application penetration testing, and stateful attack validation. It combines a CLI scanner, web dashboard, Electron desktop app, browser companion, and project-backed workflows for authorized security assessments.
 
-As of v4.0.0, WSHawk ships under the **AGPL-3.0 license** and includes the platform refactor, project-backed HTTP and WebSocket workflows, identity-aware replay and diffing, race testing, Playwright-assisted browser evidence collection for XSS testing, and local validation labs for realtime application scenarios.
+As of v4.0.2, WSHawk ships under the **AGPL-3.0 license** and includes the platform refactor, project-backed HTTP and WebSocket workflows, identity-aware replay and diffing, race testing, Playwright-assisted browser evidence collection for XSS testing, and local validation labs for realtime application scenarios.
+
+## Research Paper
+
+**Regaan, R. (2026). _WSHawk: Stateful Security Assessment of WebSocket Applications through Adaptive Payload Mutation and Browser-Assisted Validation._**
+
+- **Zenodo preprint:** [10.5281/zenodo.21290858](https://zenodo.org/records/21290858)
+- **Figshare preprint:** [10.6084/m9.figshare.32955467.v1](https://doi.org/10.6084/m9.figshare.32955467)
+
+If WSHawk supports your research, please cite the preprint using either permanent record above.
 
 > [!IMPORTANT]
 > **Full Documentation:**
@@ -37,7 +47,7 @@ As of v4.0.0, WSHawk ships under the **AGPL-3.0 license** and includes the platf
 
 ## ⚡ Performance & Adoption Benchmarks
 
-- **Current release**: `v4.0.1`
+- **Current release**: `v4.0.2`
 - **Interfaces**: CLI, web dashboard, desktop app, and browser companion
 - **Validation coverage**: `full_stack_realtime_saas`, `socketio_saas`, and `graphql_subscriptions_lab`
 - **Primary focus**: authenticated, stateful, and asynchronous web application testing rather than passive HTTP-only scanning
@@ -111,7 +121,7 @@ The WSHawk desktop workspace also includes HTTP security tools organized into si
 |---|---|
 | **CSRF Exploit Forge** | Generates proof-of-concept HTML pages — auto-submitting forms, Fetch API XHR, multipart — with CSRF token detection |
 | **Attack Chainer** | Multi-step HTTP attack sequencing with regex-based value extraction and `{{variable}}` templating across requests |
-| **Proxy CA Generator** | Root Certificate Authority (RSA 4096-bit, 10-year validity) for HTTPS interception with per-host certificate signing |
+| **Proxy CA Generator** | Root Certificate Authority (RSA 4096-bit, 10-year validity) for HTTPS interception with per-host certificate issuance |
 | **HTTP Request Forge** | Manual HTTP request builder (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS) routed through Python to bypass browser CORS |
 | **Report Generator** | Professional HTML reports with executive summary, severity charts, and remediation guidance. Also exports JSON, PDF, CSV, SARIF |
 
@@ -147,13 +157,19 @@ A native Electron + Python desktop application with three operating modes:
 
 ## Installation
 
+Prebuilt Windows, Linux, and macOS packages are available on the [GitHub Releases page](https://github.com/regaan/wshawk/releases/latest).
+
 ### Install via pip
 
 ```bash
 pip install wshawk
 
 # Optional: Browser-based XSS verification
+pip install "wshawk[browser]"
 playwright install chromium
+
+# Optional: Scientific/binary analysis helpers
+pip install "wshawk[analysis]"
 ```
 
 ### Install on macOS (Homebrew)
@@ -212,12 +228,12 @@ git clone https://github.com/regaan/wshawk
 cd wshawk
 
 # Build Python sidecar binary
-pip install -e . && pip install pyinstaller
+python -m pip install -e ".[browser]" pyinstaller
 pyinstaller wshawk-bridge.spec
 
 # Build desktop installer
 mkdir -p desktop/bin && cp dist/wshawk-bridge desktop/bin/
-cd desktop && npm install && npm run dist
+cd desktop && npm ci && npm run dist
 ```
 
 ---
@@ -376,15 +392,18 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**WSHawk v4.0.0** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
+**WSHawk v4.0.2** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
 
 ---
 
-### Latest Updates (v4.0.0)
+### Latest Updates (v4.0.2)
+- **Secure Local Boundaries**: Secret storage fails closed, browser-companion pairing requires desktop approval, and remote dashboard access requires explicit authentication.
+- **Release Gates**: Python 3.10–3.13, all desktop platforms, dependency audits, wheel inspection, and release security checks are mandatory in CI.
+- **Packaging Cleanup**: `pyproject.toml` and `wshawk/_version_info.py` are the dependency and version authorities; release wheels exclude repository-only files.
 - **Platform Refactor**: The runtime is split into daemon, transport, session, protocol, attacks, evidence, and store layers for cleaner project-backed workflows.
 - **Project-Backed Operations**: HTTP and WebSocket replay, AuthZ diffing, race testing, captured identities, and evidence now live in the same local project record.
 - **Browser Companion Pairing**: The extension uses session pairing and explicit capture scopes for WebSocket handshake ingestion.
 - **Tamper-Evident Exports**: Project bundle exports include provenance and integrity metadata for later verification.
-- **Validation Labs**: Local scenarios cover full-stack realtime SaaS, Socket.IO, and GraphQL subscription testing paths.
+- **Validation Labs**: Local scenarios cover full-stack realtime SaaS, Socket.IO, GraphQL subscriptions, deterministic web and raw WebSocket attack engines, and a paired vulnerable/hardened industry controls benchmark. A standalone 26-case HTTP/WebSocket target is ready for the desktop end-to-end automation layer. Engine warm-up, percentile, threshold, and CI reports are available through `python -m benchmarks.run`.
 
 *Built for security professionals, by Regaan.*

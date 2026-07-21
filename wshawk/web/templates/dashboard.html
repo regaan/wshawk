@@ -17,7 +17,7 @@
         <div class="nav-brand">
             <span class="logo">🦅</span>
             <span class="brand-text">WSHawk</span>
-            <span class="version">V4.0.0</span>
+            <span class="version">V{{ wshawk_version }}</span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link active">Dashboard</a>
@@ -100,6 +100,7 @@
                             <td class="actions-cell">
                                 <a href="/scan/{{ scan.id }}" class="btn btn-sm btn-outline">View</a>
                                 <form method="POST" action="/scan/{{ scan.id }}/delete" style="display:inline">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-danger"
                                         onclick="return confirm('Delete this scan?')">🗑</button>
                                 </form>
@@ -121,7 +122,7 @@
     </main>
 
     <footer class="footer">
-        <p>WSHawk V4.0.0 by <a href="https://github.com/regaan">Regaan</a> | WebSocket Security Scanner</p>
+        <p>WSHawk V{{ wshawk_version }} by <a href="https://github.com/regaan">Regaan</a> | WebSocket Security Scanner</p>
     </footer>
 
     <script>

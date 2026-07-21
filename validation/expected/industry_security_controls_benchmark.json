@@ -1,0 +1,15 @@
+{
+  "required_checks": {
+    "bola_distinguishes_missing_and_enforced_object_authorization": true,
+    "cors_distinguishes_reflection_and_allowlist": true,
+    "csrf_replay_distinguishes_unprotected_and_protected_actions": true,
+    "headers_distinguish_vulnerable_and_hardened_profiles": true,
+    "http_race_distinguishes_duplicate_acceptance_and_idempotency": true,
+    "redirect_distinguishes_open_and_local_only": true,
+    "sensitive_data_distinguishes_leak_and_redaction": true,
+    "ssrf_distinguishes_metadata_access_and_egress_filter": true,
+    "ws_origin_distinguishes_open_and_allowlisted_handshakes": true,
+    "ws_race_distinguishes_duplicate_acceptance_and_idempotency": true,
+    "ws_subscription_distinguishes_tenant_hop_and_enforcement": true
+  }
+}

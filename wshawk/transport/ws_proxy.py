@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 
 import websockets
 from fastapi import WebSocket
+from websockets.exceptions import WebSocketException
 
 from wshawk.binary_handler import BinaryMessageHandler
 from wshawk.store import ProjectStore
@@ -54,7 +55,7 @@ class WSHawkWebSocketProxy:
 
         try:
             parsed = json.loads(payload_text)
-        except Exception:
+        except (TypeError, json.JSONDecodeError):
             return {"family": "text_message", "preview": payload_text[:120]}
 
         if not isinstance(parsed, dict):
@@ -303,7 +304,8 @@ class WSHawkWebSocketProxy:
             if shadow_ws:
                 try:
                     await shadow_ws.close()
-                except Exception:
+                except WebSocketException:
+                    # The shadow socket may already have completed its close handshake.
                     pass
             if project_id and self.store and connection:
                 self.store.close_ws_connection(connection["id"], state="closed", metadata={"connected": False})

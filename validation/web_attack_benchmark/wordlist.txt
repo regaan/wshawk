@@ -1,0 +1,2 @@
+WSHAWK_BENCHMARK_MARKER
+<svg/onload=alert(1)>

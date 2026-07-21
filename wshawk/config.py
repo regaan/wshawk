@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from wshawk.secret_store import SecretStore
+from wshawk._version_info import __version__
 
 try:
     import yaml
@@ -28,7 +29,7 @@ DEFAULT_CONFIG = {
         'learning_duration': 5,
         'max_payload_count': 100,
         'verify_ssl': True,
-        'user_agent': 'WSHawk/4.0.0',
+        'user_agent': f'WSHawk/{__version__}',
         'features': {
             'playwright': False,
             'oast': True,
@@ -76,7 +77,7 @@ DEFAULT_CONFIG = {
         },
     },
     'web': {
-        'host': '0.0.0.0',
+        'host': '127.0.0.1',
         'port': 5000,
         'debug': False,
         'auth': {
@@ -376,7 +377,7 @@ integrations:
     notify_on: all
 
 web:
-  host: 0.0.0.0
+  host: 127.0.0.1
   port: 5000
   debug: false
   auth:

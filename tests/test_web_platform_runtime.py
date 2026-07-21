@@ -100,6 +100,13 @@ class WebPentestPlatformRuntimeTests(unittest.TestCase):
             },
         )
 
+    def test_http_proxy_preserves_json_shaped_non_json_body(self):
+        kwargs = WSHawkHTTPProxy._prepare_request_kwargs(
+            '{"filter":"literal text"}',
+            {"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        self.assertEqual(kwargs, {"data": b'{"filter":"literal text"}'})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "name": "WSHawk controlled security benchmark suite",
+  "standards": {
+    "owasp_asvs": {
+      "version": "5.0.0",
+      "url": "https://owasp.org/www-project-application-security-verification-standard/"
+    },
+    "owasp_wstg": {
+      "version": "4.2",
+      "url": "https://owasp.org/www-project-web-security-testing-guide/v42/"
+    },
+    "owasp_api_security": {
+      "version": "2023",
+      "url": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/"
+    }
+  },
+  "coverage": [
+    {
+      "control": "object_level_authorization",
+      "checks": ["bola_distinguishes_missing_and_enforced_object_authorization"],
+      "references": ["OWASP API1:2023", "OWASP WSTG Authorization Testing"]
+    },
+    {
+      "control": "ssrf_and_egress_filtering",
+      "checks": ["ssrf_distinguishes_metadata_access_and_egress_filter"],
+      "references": ["OWASP API7:2023", "OWASP WSTG Input Validation Testing"]
+    },
+    {
+      "control": "security_headers_and_cors",
+      "checks": [
+        "headers_distinguish_vulnerable_and_hardened_profiles",
+        "cors_distinguishes_reflection_and_allowlist"
+      ],
+      "references": ["OWASP ASVS 5.0 V3 Web Frontend", "OWASP WSTG Client-side Testing"]
+    },
+    {
+      "control": "sensitive_data_exposure",
+      "checks": ["sensitive_data_distinguishes_leak_and_redaction"],
+      "references": ["OWASP API3:2023", "OWASP WSTG Information Gathering"]
+    },
+    {
+      "control": "csrf_and_redirect_integrity",
+      "checks": [
+        "csrf_replay_distinguishes_unprotected_and_protected_actions",
+        "redirect_distinguishes_open_and_local_only"
+      ],
+      "references": ["OWASP WSTG Session Management", "OWASP WSTG Client-side URL Redirect"]
+    },
+    {
+      "control": "business_flow_idempotency",
+      "checks": [
+        "http_race_distinguishes_duplicate_acceptance_and_idempotency",
+        "ws_race_distinguishes_duplicate_acceptance_and_idempotency"
+      ],
+      "references": ["OWASP API6:2023", "OWASP WSTG Business Logic Testing"]
+    },
+    {
+      "control": "websocket_authorization_and_origin_policy",
+      "checks": [
+        "ws_subscription_distinguishes_tenant_hop_and_enforcement",
+        "ws_origin_distinguishes_open_and_allowlisted_handshakes"
+      ],
+      "references": ["OWASP WSTG Testing WebSockets", "OWASP ASVS 5.0 V4 API and Web Service"]
+    }
+  ]
+}

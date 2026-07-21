@@ -6,9 +6,8 @@ We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 3.x     | :white_check_mark: |
-| 2.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| 4.x     | :white_check_mark: |
+| < 4.0   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -49,7 +48,7 @@ Security patches are released as soon as possible. Subscribe to releases to stay
 
 ### Out of Scope
 
-- Vulnerabilities in dependencies (report to the dependency maintainers)
+- Issues that exist only in an upstream dependency and do not affect WSHawk (report those to the dependency maintainer)
 - Social engineering attacks
 - Physical attacks
 

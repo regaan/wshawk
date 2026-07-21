@@ -7,7 +7,9 @@ import csv
 import io
 import os
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from wshawk.report_exporter import ReportExporter
@@ -172,11 +174,11 @@ class TestReportExporter(unittest.TestCase):
     # ─── Custom Output Path ─────────────────────────────────────
 
     def test_custom_output_path(self):
-        custom_path = '/tmp/wshawk_test_output.json'
-        path = self.exporter.export(self.sample_vulns, self.scan_info, 'json', custom_path)
-        self.assertEqual(path, custom_path)
-        self.assertTrue(os.path.exists(custom_path))
-        os.remove(custom_path)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            custom_path = str(Path(temp_dir) / 'wshawk_test_output.json')
+            path = self.exporter.export(self.sample_vulns, self.scan_info, 'json', custom_path)
+            self.assertEqual(path, custom_path)
+            self.assertTrue(os.path.exists(custom_path))
 
     # ─── Invalid Format ─────────────────────────────────────────
 

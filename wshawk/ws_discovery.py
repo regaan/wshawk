@@ -18,10 +18,7 @@ try:
 except ImportError:
     aiohttp = None
 
-try:
-    from .__main__ import Logger, Colors
-except ImportError:
-    from __main__ import Logger, Colors
+from .console import Colors, Logger
 
 
 class WSEndpointDiscovery:

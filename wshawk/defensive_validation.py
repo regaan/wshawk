@@ -18,10 +18,52 @@ Modules:
 """
 
 import asyncio
-import websockets
-import uuid
+import json
+import os
 import time
+import uuid
 from typing import Dict, List, Optional
+from urllib.parse import quote
+
+import aiohttp
+import websockets
+
+
+class DefensiveValidationResult(list):
+    """List-compatible validation result with explicit partial-failure state."""
+
+    def __init__(self):
+        super().__init__()
+        self.errors: List[Dict[str, str]] = []
+
+    def record_error(self, module: str, error: object) -> None:
+        self.errors.append({'module': module, 'error': str(error)})
+
+    @property
+    def exit_code(self) -> int:
+        return 1 if self.errors else 0
+
+
+async def connect_with_retry(target_url: str, timeout: float, attempts: int = 3):
+    """Open a WebSocket with bounded retries for transient resolver/network errors."""
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return await asyncio.wait_for(
+                websockets.connect(
+                    target_url,
+                    open_timeout=timeout,
+                    close_timeout=timeout,
+                ),
+                timeout=timeout + 1.0,
+            )
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                print(f"[!] Connection attempt {attempt}/{attempts} failed: {exc}; retrying...")
+                await asyncio.sleep(0.25 * attempt)
+
+    raise last_error
 
 
 class DefensiveValidationModule:
@@ -64,9 +106,17 @@ class DNSExfiltrationTest(DefensiveValidationModule):
     - Detect potential data exfiltration channels
     """
     
-    def __init__(self, target_url: str, oast_domain: str = "oast.me"):
+    def __init__(
+        self,
+        target_url: str,
+        oast_domain: str = "oast.me",
+        callback_check_url: Optional[str] = None,
+        callback_auth_token: Optional[str] = None,
+    ):
         super().__init__(target_url, oast_domain)
         self.dns_tests = []
+        self.callback_check_url = callback_check_url or os.getenv("WSHAWK_OAST_CALLBACK_URL", "")
+        self.callback_auth_token = callback_auth_token or os.getenv("WSHAWK_OAST_API_TOKEN", "")
         
     async def test_dns_exfiltration_via_xxe(self, websocket) -> Dict:
         """
@@ -102,7 +152,7 @@ class DNSExfiltrationTest(DefensiveValidationModule):
             # Check if DNS query was received
             dns_received = await self._check_dns_callback(test_domain)
             
-            if dns_received:
+            if dns_received is True:
                 self.add_finding(
                     test_name="DNS Exfiltration Prevention",
                     vulnerable=True,
@@ -115,7 +165,7 @@ class DNSExfiltrationTest(DefensiveValidationModule):
                     cvss=7.5
                 )
                 return {'vulnerable': True, 'domain': test_domain}
-            else:
+            elif dns_received is False:
                 self.add_finding(
                     test_name="DNS Exfiltration Prevention",
                     vulnerable=False,
@@ -125,6 +175,15 @@ class DNSExfiltrationTest(DefensiveValidationModule):
                     recommendation="Continue monitoring DNS traffic for anomalies."
                 )
                 return {'vulnerable': False}
+            else:
+                self.add_finding(
+                    test_name="DNS Exfiltration Prevention",
+                    vulnerable=False,
+                    severity="INFO",
+                    description="DNS callback verification was inconclusive because no OAST callback API is configured.",
+                    recommendation="Configure WSHAWK_OAST_CALLBACK_URL before drawing a DNS egress conclusion.",
+                )
+                return {'vulnerable': False, 'inconclusive': True, 'callback_domain': test_domain}
                 
         except Exception as e:
             return {'error': str(e)}
@@ -150,7 +209,7 @@ class DNSExfiltrationTest(DefensiveValidationModule):
             
             dns_received = await self._check_dns_callback(test_domain)
             
-            if dns_received:
+            if dns_received is True:
                 self.add_finding(
                     test_name="SSRF-based DNS Exfiltration",
                     vulnerable=True,
@@ -161,19 +220,51 @@ class DNSExfiltrationTest(DefensiveValidationModule):
                     cvss=8.2
                 )
                 return {'vulnerable': True}
-            else:
+            elif dns_received is False:
                 return {'vulnerable': False}
+            return {'vulnerable': False, 'inconclusive': True, 'callback_domain': test_domain}
                 
         except Exception as e:
             return {'error': str(e)}
     
-    async def _check_dns_callback(self, domain: str) -> bool:
-        """
-        Check if DNS callback was received
-        
-        In production, this would query your OAST server's API
-        """
-        # Placeholder - integrate with actual OAST provider
+    async def _check_dns_callback(self, domain: str) -> Optional[bool]:
+        """Query a configured OAST callback API for the generated domain."""
+        if not self.callback_check_url:
+            return None
+
+        encoded_domain = quote(domain, safe="")
+        if "{domain}" in self.callback_check_url:
+            endpoint = self.callback_check_url.replace("{domain}", encoded_domain)
+        else:
+            separator = "&" if "?" in self.callback_check_url else "?"
+            endpoint = f"{self.callback_check_url}{separator}domain={encoded_domain}"
+
+        headers = {"Accept": "application/json"}
+        if self.callback_auth_token:
+            headers["Authorization"] = f"Bearer {self.callback_auth_token}"
+
+        timeout = aiohttp.ClientTimeout(total=8)
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.get(endpoint, timeout=timeout) as response:
+                if response.status == 404:
+                    return False
+                response.raise_for_status()
+                raw = await response.text(errors="ignore")
+
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError):
+            payload = raw
+
+        serialized = json.dumps(payload, sort_keys=True) if not isinstance(payload, str) else payload
+        if domain.lower() in serialized.lower():
+            return True
+        if isinstance(payload, dict):
+            for key in ("found", "received", "callback_received", "exists"):
+                if payload.get(key) is True:
+                    return True
+            if payload.get("count") not in (None, 0, "0"):
+                return True
         return False
     
     async def run_all_tests(self, websocket) -> List[Dict]:
@@ -208,6 +299,11 @@ class BotDetectionValidator(DefensiveValidationModule):
     - Validate anti-automation measures
     - Identify gaps in bot protection
     """
+
+    @staticmethod
+    def _browser_runtime_missing(error: Exception) -> bool:
+        message = str(error).lower()
+        return "executable doesn't exist" in message and "playwright" in message
     
     async def test_basic_headless_detection(self) -> Dict:
         """
@@ -261,6 +357,11 @@ class BotDetectionValidator(DefensiveValidationModule):
                     return {'detected': False}
                     
         except Exception as e:
+            if self._browser_runtime_missing(e):
+                return {
+                    'error': 'Playwright browser runtime is not installed',
+                    'skipped': True,
+                }
             return {'error': str(e)}
     
     async def test_evasion_resistance(self) -> Dict:
@@ -329,6 +430,11 @@ class BotDetectionValidator(DefensiveValidationModule):
                     return {'evaded': True}
                     
         except Exception as e:
+            if self._browser_runtime_missing(e):
+                return {
+                    'error': 'Playwright browser runtime is not installed',
+                    'skipped': True,
+                }
             return {'error': str(e)}
     
     async def run_all_tests(self) -> List[Dict]:
@@ -365,97 +471,184 @@ class CSWSHValidator(DefensiveValidationModule):
     - Protect user sessions
     """
     
+    def __init__(
+        self,
+        target_url: str,
+        oast_domain: str = "oast.me",
+        max_origins: int = 12,
+        origin_concurrency: int = 4,
+        connection_timeout: float = 5.0,
+    ):
+        super().__init__(target_url, oast_domain)
+        self.max_origins = max(1, max_origins)
+        self.origin_concurrency = max(1, origin_concurrency)
+        self.connection_timeout = max(0.1, connection_timeout)
+
+    def _load_malicious_origins(self) -> List[str]:
+        """Load a bounded, de-duplicated set of representative origins."""
+        import os
+
+        payload_file = os.path.join(
+            os.path.dirname(__file__),
+            'payloads',
+            'malicious_origins.txt',
+        )
+
+        try:
+            with open(payload_file, 'r', encoding='utf-8') as payload_handle:
+                candidates = [
+                    line.strip()
+                    for line in payload_handle
+                    if line.strip() and not line.lstrip().startswith('#')
+                ]
+        except FileNotFoundError:
+            candidates = [
+                'https://evil-attacker.com',
+                'http://localhost:666',
+                'null',
+            ]
+
+        return list(dict.fromkeys(candidates))[:self.max_origins]
+
+    async def _probe_origin(self, origin: str):
+        """Return ``(accepted, error)`` for a single Origin handshake."""
+        last_error = None
+        for attempt in range(2):
+            websocket = None
+            try:
+                websocket = await asyncio.wait_for(
+                    websockets.connect(
+                        self.target_url,
+                        additional_headers={'Origin': origin},
+                        open_timeout=self.connection_timeout,
+                        close_timeout=self.connection_timeout,
+                    ),
+                    timeout=self.connection_timeout + 1.0,
+                )
+                return True, None
+            except Exception as exc:
+                # An explicit HTTP handshake rejection is a valid negative test.
+                # DNS, TCP, TLS, and timeout failures make the probe inconclusive.
+                if type(exc).__name__ in {'InvalidStatus', 'InvalidStatusCode'}:
+                    return False, None
+                last_error = str(exc)
+            finally:
+                if websocket is not None:
+                    try:
+                        await asyncio.wait_for(websocket.close(), timeout=self.connection_timeout)
+                    except Exception:
+                        pass
+
+            if attempt == 0:
+                await asyncio.sleep(0.1)
+
+        return False, last_error
+
     async def test_origin_validation(self) -> Dict:
         """
         Test if server validates Origin header
         
         Attempts connection with malicious origins
         """
-        # Load malicious origins from payload file
-        import os
-        payload_file = os.path.join(
-            os.path.dirname(__file__), 
-            'payloads', 
-            'malicious_origins.txt'
-        )
-        
-        try:
-            with open(payload_file, 'r') as f:
-                malicious_origins = [line.strip() for line in f if line.strip()]
-        except FileNotFoundError:
-            # Fallback to basic list if file not found
-            malicious_origins = [
-                'https://evil-attacker.com',
-                'http://localhost:666',
-                'null'
-            ]
-        
-        vulnerable_origins = []
-        
-        for origin in malicious_origins:
-            try:
-                ws = await websockets.connect(
-                    self.target_url,
-                    additional_headers={'Origin': origin}
-                )
-                
-                vulnerable_origins.append(origin)
-                await ws.close()
-                
-            except Exception:
-                pass
-        
-        if vulnerable_origins:
+        malicious_origins = self._load_malicious_origins()
+        semaphore = asyncio.Semaphore(self.origin_concurrency)
+        completed = 0
+        progress_step = max(1, len(malicious_origins) // 4)
+
+        async def run_probe(origin: str):
+            nonlocal completed
+            async with semaphore:
+                accepted, error = await self._probe_origin(origin)
+            completed += 1
+            if completed == len(malicious_origins) or completed % progress_step == 0:
+                print(f"    Origin probes: {completed}/{len(malicious_origins)}")
+            return origin, accepted, error
+
+        probe_results = await asyncio.gather(*(run_probe(origin) for origin in malicious_origins))
+        accepted_origins = [origin for origin, accepted, _ in probe_results if accepted]
+        probe_errors = [
+            {'origin': origin, 'error': error}
+            for origin, _, error in probe_results
+            if error
+        ]
+
+        if accepted_origins:
+            preview = ', '.join(accepted_origins[:5])
+            if len(accepted_origins) > 5:
+                preview += f", and {len(accepted_origins) - 5} more"
             self.add_finding(
-                test_name="CSWSH - Origin Header Validation",
-                vulnerable=True,
-                severity="CRITICAL",
-                description=f"Server accepts WebSocket connections from untrusted origins: "
-                           f"{', '.join(vulnerable_origins)}. CSWSH is possible.",
-                recommendation="CRITICAL: Implement Origin header validation immediately. "
-                             "Only accept connections from trusted origins.",
-                cvss=9.1
+                test_name="WebSocket Origin Policy Observation",
+                vulnerable=False,
+                severity="INFO",
+                description=(
+                    f"Server accepted {len(accepted_origins)}/{len(malicious_origins)} sampled untrusted origins "
+                    f"({preview}). Origin acceptance alone does not prove CSWSH without browser-supplied "
+                    "credentials and demonstrated unauthorized impact."
+                ),
+                recommendation=(
+                    "If the endpoint uses cookies or ambient browser credentials, manually verify impact and "
+                    "restrict Origin to an explicit allowlist. Public unauthenticated endpoints may intentionally "
+                    "accept arbitrary origins."
+                ),
             )
-            return {'vulnerable': True, 'vulnerable_origins': vulnerable_origins}
+            return {
+                'vulnerable': False,
+                'accepted_origins': accepted_origins,
+                'requires_manual_verification': True,
+                'tested_origins': len(malicious_origins),
+                'errors': probe_errors,
+            }
         else:
             self.add_finding(
                 test_name="CSWSH - Origin Header Validation",
                 vulnerable=False,
                 severity="INFO",
-                description="Server properly validates Origin header. CSWSH attacks are prevented.",
-                recommendation="Excellent! Continue enforcing Origin validation."
+                description=(
+                    "No sampled untrusted Origin completed a handshake. Review any probe errors before concluding "
+                    "that Origin validation is enforced."
+                ),
+                recommendation="Continue enforcing an explicit Origin allowlist for credentialed browser endpoints."
             )
-            return {'vulnerable': False}
+            return {
+                'vulnerable': False,
+                'tested_origins': len(malicious_origins),
+                'errors': probe_errors,
+            }
     
     async def test_csrf_token_requirement(self) -> Dict:
         """
         Test if WebSocket requires CSRF tokens
         """
         try:
-            ws = await websockets.connect(self.target_url)
-            
-            test_payload = {
-                "action": "sensitive_action",
-                "data": "test"
-            }
-            
-            await ws.send(str(test_payload))
-            response = await asyncio.wait_for(ws.recv(), timeout=5.0)
-            
-            if 'success' in response.lower():
-                self.add_finding(
-                    test_name="CSRF Token Requirement",
-                    vulnerable=True,
-                    severity="HIGH",
-                    description="WebSocket accepts sensitive actions without CSRF token.",
-                    recommendation="Implement CSRF token validation for WebSocket messages.",
-                    cvss=7.5
-                )
-                return {'vulnerable': True}
-            else:
+            async with websockets.connect(
+                self.target_url,
+                open_timeout=self.connection_timeout,
+                close_timeout=self.connection_timeout,
+            ) as websocket:
+                test_payload = {
+                    "action": "sensitive_action",
+                    "data": "test"
+                }
+                serialized_payload = str(test_payload)
+
+                await websocket.send(serialized_payload)
+                response = await asyncio.wait_for(websocket.recv(), timeout=self.connection_timeout)
+
+                if response == serialized_payload:
+                    return {'vulnerable': False, 'echoed': True, 'requires_manual_verification': True}
+
+                if 'success' in response.lower():
+                    self.add_finding(
+                        test_name="CSRF Token Requirement",
+                        vulnerable=True,
+                        severity="HIGH",
+                        description="WebSocket accepts sensitive actions without CSRF token.",
+                        recommendation="Implement CSRF token validation for WebSocket messages.",
+                        cvss=7.5
+                    )
+                    return {'vulnerable': True}
+
                 return {'vulnerable': False}
-                
-            await ws.close()
             
         except Exception as e:
             return {'error': str(e)}
@@ -475,7 +668,13 @@ class CSWSHValidator(DefensiveValidationModule):
         return results
 
 
-async def run_defensive_validation(target_url: str):
+async def run_defensive_validation(
+    target_url: str,
+    *,
+    origin_limit: int = 12,
+    origin_concurrency: int = 4,
+    connection_timeout: float = 5.0,
+):
     """
     Run all defensive validation modules
     
@@ -492,42 +691,71 @@ async def run_defensive_validation(target_url: str):
     print("=" * 70)
     print()
     
-    all_findings = []
+    all_findings = DefensiveValidationResult()
+
+    def record_result_errors(module: str, results: List[Dict]) -> None:
+        for result in results:
+            if not isinstance(result, dict):
+                all_findings.record_error(module, 'test returned no structured result')
+                continue
+            if result.get('error') and not result.get('skipped'):
+                all_findings.record_error(module, result['error'])
+            for probe_error in result.get('errors', []):
+                all_findings.record_error(
+                    module,
+                    f"{probe_error.get('origin', 'probe')}: {probe_error.get('error', 'unknown error')}",
+                )
     
     # 1. DNS Exfiltration Prevention Test
     try:
-        async with websockets.connect(target_url) as ws:
+        ws = await connect_with_retry(target_url, connection_timeout)
+        try:
             dns_test = DNSExfiltrationTest(target_url)
-            await dns_test.run_all_tests(ws)
+            dns_results = await dns_test.run_all_tests(ws)
+            record_result_errors('DNS exfiltration', dns_results)
             all_findings.extend(dns_test.findings)
+        finally:
+            await ws.close()
     except Exception as e:
         print(f"[!] DNS test error: {e}")
+        all_findings.record_error('DNS exfiltration', e)
     
     # 2. Bot Detection Validation
     try:
         bot_test = BotDetectionValidator(target_url)
-        await bot_test.run_all_tests()
+        bot_results = await bot_test.run_all_tests()
+        record_result_errors('Bot detection', bot_results)
         all_findings.extend(bot_test.findings)
     except Exception as e:
         print(f"[!] Bot detection test error: {e}")
+        all_findings.record_error('Bot detection', e)
     
     # 3. CSWSH Validation
     try:
-        cswsh_test = CSWSHValidator(target_url)
-        await cswsh_test.run_all_tests()
+        cswsh_test = CSWSHValidator(
+            target_url,
+            max_origins=origin_limit,
+            origin_concurrency=origin_concurrency,
+            connection_timeout=connection_timeout,
+        )
+        cswsh_results = await cswsh_test.run_all_tests()
+        record_result_errors('CSWSH', cswsh_results)
         all_findings.extend(cswsh_test.findings)
     except Exception as e:
         print(f"[!] CSWSH test error: {e}")
+        all_findings.record_error('CSWSH', e)
     
     # 4. WSS Protocol Security Validation (only for wss:// URLs)
     if target_url.startswith('wss://'):
         try:
             from .wss_security_validator import WSSSecurityValidator
             wss_test = WSSSecurityValidator(target_url)
-            wss_test.run_all_tests()
+            wss_results = wss_test.run_all_tests()
+            record_result_errors('WSS security', wss_results)
             all_findings.extend(wss_test.findings)
         except Exception as e:
             print(f"[!] WSS security test error: {e}")
+            all_findings.record_error('WSS security', e)
     else:
         print("[*] Skipping WSS security tests (requires wss:// URL)")
     
@@ -544,7 +772,13 @@ async def run_defensive_validation(target_url: str):
     print(f"  CRITICAL: {critical}")
     print(f"  HIGH: {high}")
     print(f"  MEDIUM: {medium}")
+    print(f"  TEST ERRORS: {len(all_findings.errors)}")
     print()
+
+    if all_findings.errors:
+        print("Incomplete modules:")
+        for error in all_findings.errors:
+            print(f"  - {error['module']}: {error['error']}")
     
     for finding in all_findings:
         if finding['vulnerable']:

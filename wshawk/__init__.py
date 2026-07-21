@@ -1,9 +1,6 @@
-"""
-WSHawk - WebSocket Security Scanner
-"""
+"""WSHawk - WebSocket Security Scanner."""
 
-from .__main__ import *
-from .interactive import *
+from ._version_info import __version__
 
-__version__ = "4.0.0"
+__all__ = ["__version__"]
 __author__ = "Regaan (@regaan)"

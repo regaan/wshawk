@@ -17,23 +17,9 @@ try:
 except ImportError:
     aiohttp = None
 
-try:
-    from .._version_info import __version__
-except ImportError:
-    __version__ = "4.0.0"
+from .._version_info import __version__
 
-try:
-    from ..__main__ import Logger
-except ImportError:
-    class Logger:
-        @staticmethod
-        def info(msg): print(f"[*] {msg}")
-        @staticmethod
-        def success(msg): print(f"[+] {msg}")
-        @staticmethod
-        def error(msg): print(f"[-] {msg}")
-        @staticmethod
-        def warning(msg): print(f"[!] {msg}")
+from ..console import Logger
 
 
 class DefectDojoIntegration:

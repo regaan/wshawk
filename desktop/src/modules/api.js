@@ -60,7 +60,7 @@
             ctx.historyCount.innerText = `${ctx.getMsgCount()} frames`;
 
             ctx.clearFindingStore();
-            ctx.findingsContainer.innerHTML = '';
+            global.WSHawkDOM.clear(ctx.findingsContainer);
             if (Array.isArray(nextProject.findings) && nextProject.findings.length) {
                 nextProject.findings.forEach((finding, index) => {
                     ctx.addFinding(

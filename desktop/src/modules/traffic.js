@@ -8,12 +8,12 @@
 
         resetHistoryView({ historyTbody, historyData, message = 'Awaiting traffic capture...' }) {
             this.clearHistoryStore(historyData);
-            historyTbody.innerHTML = `<tr class="empty-tr"><td colspan="6">${global.esc ? global.esc(message) : message}</td></tr>`;
+            global.WSHawkDOM.emptyTable(historyTbody, message, 6);
         },
 
         addHistoryRow({ historyTbody, historyData, dir, data, options = {} }) {
             if (historyTbody.querySelector('.empty-tr')) {
-                historyTbody.innerHTML = '';
+                global.WSHawkDOM.clear(historyTbody);
             }
 
             const rowId = options.rowId || `h${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
@@ -26,18 +26,21 @@
             const time = options.time || new Date().toLocaleTimeString('en-US', { hour12: false });
             const size = options.size ?? (typeof data === 'string' ? new Blob([data]).size : JSON.stringify(data).length);
             const truncate = global.truncate || ((value) => String(value));
-            const esc = global.esc || ((value) => String(value));
-            const html = `
-                <tr data-row-id="${esc(rowId)}">
-                    <td>#${rowNumber}</td>
-                    <td class="dir-${String(dir || 'info').toLowerCase()}">${esc(dir)}</td>
-                    <td>${esc(time)}</td>
-                    <td>${size}B</td>
-                    <td>${esc(truncate(data, 90))}</td>
-                    <td><button class="history-replay-btn" data-action="send-to-forge" data-row-id="${esc(rowId)}">→ Forge</button></td>
-                </tr>
-            `;
-            historyTbody.insertAdjacentHTML('afterbegin', html);
+            const dom = global.WSHawkDOM;
+            const replayButton = dom.element('button', {
+                className: 'history-replay-btn',
+                text: '→ Forge',
+                dataset: { action: 'send-to-forge', rowId },
+            });
+            const row = dom.element('tr', { dataset: { rowId } }, [
+                dom.element('td', { text: `#${rowNumber}` }),
+                dom.element('td', { className: `dir-${String(dir || 'info').toLowerCase()}`, text: dir }),
+                dom.element('td', { text: time }),
+                dom.element('td', { text: `${size}B` }),
+                dom.element('td', { text: truncate(data, 90) }),
+                dom.element('td', {}, [replayButton]),
+            ]);
+            historyTbody.prepend(row);
             return rowId;
         },
 
@@ -78,7 +81,7 @@
             }
 
             this.clearHistoryStore(historyData);
-            historyTbody.innerHTML = '';
+            global.WSHawkDOM.clear(historyTbody);
 
             [...trafficEvents].reverse().forEach((event, index) => {
                 const direction = event.direction ? event.direction.toUpperCase() : 'INFO';

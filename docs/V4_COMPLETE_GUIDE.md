@@ -60,14 +60,17 @@ The v4 line is centered on structured local projects rather than disposable sess
 - evidence bundle export with integrity metadata
 - local validation labs for realtime application scenarios
 
-### What Stayed Legacy
+### CLI Runtime
 
-The base CLI entry points still exist, but the top-level `wshawk` and `wshawk-advanced` commands are compatibility wrappers around the older scanner path:
+The `wshawk`, `wshawk-advanced`, and `wshawk-interactive` entry points now use
+`WSHawkV2` directly. The old import paths remain only as explicit deprecated
+facades for third-party integrations:
 
-- `wshawk.__main__` delegates to `wshawk.legacy_core`
-- `wshawk.advanced_cli` delegates to `wshawk.legacy_advanced_cli`
+- `wshawk.legacy_core` lazily exposes the retired `WSHawk` class when requested
+- `wshawk.legacy_advanced_cli` forwards to `wshawk.advanced_cli`
 
-That matters because the most complete v4 experience is not the old standalone CLI path. It is the desktop plus local daemon plus project-backed services.
+The desktop plus local daemon plus project-backed services remains the most
+complete v4 operator experience.
 
 ---
 
@@ -148,7 +151,7 @@ Run from source:
 
 ```bash
 cd desktop
-npm install
+npm ci
 npm start
 ```
 
@@ -586,16 +589,16 @@ pip install wshawk
 ```bash
 git clone https://github.com/regaan/wshawk
 cd wshawk
-pip install -e .
+python -m pip install -e ".[browser]"
 ```
 
 ### Desktop Build
 
 ```bash
-pip install pyinstaller
+python -m pip install pyinstaller
 pyinstaller wshawk-bridge.spec
 cd desktop
-npm install
+npm ci
 npm run dist
 ```
 

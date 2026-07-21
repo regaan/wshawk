@@ -54,7 +54,7 @@ class WSHawkHTTPProxy:
         if isinstance(body, (dict, list)):
             return {"json": body}
 
-        if isinstance(body, str):
+        if isinstance(body, str) and cls._is_json_request(headers):
             stripped = body.strip()
             if stripped:
                 decoded: Any = body

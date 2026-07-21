@@ -27,8 +27,8 @@ The current `wshawk.defensive_validation` module implements three main areas:
 
 These points matter if you are using this module seriously:
 
-1. The DNS callback checker is currently a placeholder.
-The `_check_dns_callback()` path returns `False` unless you replace it with a real OAST integration. The module can still exercise the code path, but it does not ship with turnkey positive callback confirmation.
+1. DNS callback checking requires an OAST API.
+Set `WSHAWK_OAST_CALLBACK_URL` to an API URL. The URL may contain a `{domain}` placeholder; otherwise WSHawk appends a `domain` query parameter. Set `WSHAWK_OAST_API_TOKEN` when bearer authentication is required. Without this configuration, the result is explicitly inconclusive instead of being reported as a blocked callback.
 
 2. Older docs overstated WSS/TLS validation.
 The current `wshawk.defensive_validation.py` file does not implement a separate WSS/TLS hardening validator. If you need TLS posture checks, use the web pentest TLS tooling instead of assuming the defensive module covers it.
@@ -118,7 +118,7 @@ The DNS module currently sends payloads intended to trigger:
 - XXE-driven outbound lookups
 - SSRF-driven outbound lookups
 
-Use it as a validation helper for egress assumptions, but do not assume shipped positive callback proof without wiring in your own OAST backend.
+Use it as a validation helper for egress assumptions. Positive and negative callback conclusions require a configured OAST backend; an unconfigured run is marked inconclusive.
 
 ### Bot Detection Validation
 

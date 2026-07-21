@@ -4,7 +4,9 @@ WSHawk Interactive Menu
 """
 
 import asyncio
-from .__main__ import WSHawk, Logger, Colors
+import argparse
+from ._version_info import __version__
+from .console import Colors, Logger
 
 def show_banner():
     Logger.banner()
@@ -14,65 +16,44 @@ def show_menu():
     print(f"{Colors.BOLD}Select Tests to Run:{Colors.END}")
     print(f"{Colors.CYAN}{'='*60}{Colors.END}\n")
     
-    print(f"{Colors.GREEN}1.{Colors.END}  Origin Validation Bypass - CSWSH (60+ payloads)")
-    print(f"{Colors.GREEN}2.{Colors.END}  SQL Injection (ALL 722 payloads)")
-    print(f"{Colors.GREEN}3.{Colors.END}  XSS - Cross-Site Scripting (ALL 7,106 payloads)")
-    print(f"{Colors.GREEN}4.{Colors.END}  Command Injection (ALL 8,562 payloads)")
-    print(f"{Colors.GREEN}5.{Colors.END}  NoSQL Injection (ALL payloads)")
-    print(f"{Colors.GREEN}6.{Colors.END}  LDAP Injection (ALL payloads)")
-    print(f"{Colors.GREEN}7.{Colors.END}  Path Traversal (ALL payloads)")
-    print(f"{Colors.GREEN}8.{Colors.END}  SSTI - Server Side Template Injection (ALL payloads)")
-    print(f"{Colors.GREEN}9.{Colors.END}  XXE - XML External Entity (ALL payloads)")
-    print(f"{Colors.GREEN}10.{Colors.END} Open Redirect (ALL payloads)")
-    print(f"{Colors.GREEN}11.{Colors.END} Message Replay Attack")
-    print(f"{Colors.GREEN}12.{Colors.END} Rate Limiting Test")
-    print(f"{Colors.GREEN}13.{Colors.END} Authentication Bypass")
+    print(f"{Colors.GREEN}1.{Colors.END}  SQL Injection")
+    print(f"{Colors.GREEN}2.{Colors.END}  XSS - Cross-Site Scripting")
+    print(f"{Colors.GREEN}3.{Colors.END}  Command Injection")
+    print(f"{Colors.GREEN}4.{Colors.END}  NoSQL Injection")
+    print(f"{Colors.GREEN}5.{Colors.END}  Path Traversal")
+    print(f"{Colors.GREEN}6.{Colors.END}  XXE - XML External Entity")
+    print(f"{Colors.GREEN}7.{Colors.END}  SSRF")
     print(f"{Colors.GREEN}99.{Colors.END} {Colors.BOLD}FULL SCAN{Colors.END} (ALL tests with ALL payloads!)")
     print(f"{Colors.RED}0.{Colors.END}  Exit\n")
 
-async def run_selected_tests(scanner, choices):
-    """Run only selected tests"""
-    
-    if '1' in choices or '99' in choices:
-        await scanner.test_origin_bypass()
-    
-    if '2' in choices or '99' in choices:
-        await scanner.test_sql_injection()
-    
-    if '3' in choices or '99' in choices:
-        await scanner.test_xss()
-    
-    if '4' in choices or '99' in choices:
-        await scanner.test_command_injection()
-    
-    if '5' in choices or '99' in choices:
-        await scanner.test_nosql_injection()
-    
-    if '6' in choices or '99' in choices:
-        await scanner.test_ldap_injection()
-    
-    if '7' in choices or '99' in choices:
-        await scanner.test_path_traversal()
-    
-    if '8' in choices or '99' in choices:
-        await scanner.test_ssti()
-    
-    if '9' in choices or '99' in choices:
-        await scanner.test_xxe()
-    
-    if '10' in choices or '99' in choices:
-        await scanner.test_open_redirect()
-    
-    if '11' in choices or '99' in choices:
-        await scanner.test_message_replay()
-    
-    if '12' in choices or '99' in choices:
-        await scanner.test_rate_limiting()
-    
-    if '13' in choices or '99' in choices:
-        await scanner.test_authentication_bypass()
+async def run_selected_tests(scanner, choices, websocket):
+    """Run selected modern scanner checks."""
+    checks = {
+        "1": scanner.test_sql_injection_v2,
+        "2": scanner.test_xss_v2,
+        "3": scanner.test_command_injection_v2,
+        "4": scanner.test_nosql_injection_v2,
+        "5": scanner.test_path_traversal_v2,
+        "6": scanner.test_xxe_v2,
+        "7": scanner.test_ssrf_v2,
+    }
+    invalid = sorted(set(choices) - set(checks))
+    if invalid:
+        raise ValueError(f"Unknown test selection: {', '.join(invalid)}")
+    for choice in choices:
+        await checks[choice](websocket)
 
-async def main():
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog='wshawk-interactive',
+        description='Run the interactive WSHawk scanner menu.',
+    )
+    parser.add_argument('--version', action='version', version=f'wshawk-interactive {__version__}')
+    return parser
+
+
+async def main(argv=None):
+    build_parser().parse_args(argv)
     show_banner()
     
     # Get target URL
@@ -81,11 +62,11 @@ async def main():
     
     if not url:
         Logger.error("No URL provided")
-        return
+        return 2
     
     if not url.startswith(('ws://', 'wss://')):
         Logger.error("URL must start with ws:// or wss://")
-        return
+        return 2
     
     # Show menu
     show_menu()
@@ -96,7 +77,7 @@ async def main():
     
     if choice == '0':
         print(f"{Colors.YELLOW}Exiting...{Colors.END}")
-        return
+        return 0
     
     # Parse choices
     choices = [c.strip() for c in choice.split(',')]
@@ -109,7 +90,7 @@ async def main():
     from .scanner_v2 import WSHawkV2
     
     Logger.info(f"Target: {url}")
-    Logger.info("Using WSHawk v4.0.0 Advanced Scanner")
+    Logger.info(f"Using WSHawk v{__version__} Advanced Scanner")
     
     scanner = WSHawkV2(url, max_rps=10)
     scanner.use_headless_browser = False  # Disable by default
@@ -122,13 +103,16 @@ async def main():
     else:
         # Individual tests: connect and run only what the user selected
         Logger.info(f"Running selected tests: {', '.join(choices)}")
+        ws = await scanner.connect()
+        if ws is None:
+            return 1
         try:
-            import websockets
-            async with websockets.connect(url) as ws:
-                await run_selected_tests(scanner, choices)
-        except Exception as e:
+            await run_selected_tests(scanner, choices, ws)
+        except (OSError, ValueError, RuntimeError) as e:
             Logger.error(f"Connection failed: {e}")
-            return
+            return 1
+        finally:
+            await ws.close()
     
     Logger.success("Scan complete!")
     Logger.info(f"Vulnerabilities found: {len(scanner.vulnerabilities)}")
@@ -138,7 +122,6 @@ async def main():
     print("="*60)
     print("VULNERABILITY SUMMARY")
     print("="*60)
-    
     if scanner.vulnerabilities:
         for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
             count = sum(1 for v in scanner.vulnerabilities if v.get('confidence') == level)
@@ -148,17 +131,20 @@ async def main():
         print("No vulnerabilities found")
     
     print("="*60)
+    return 0 if scanner.scan_completed or '99' not in choices else 1
 
 
-def cli():
+def cli(argv=None):
     """Entry point for pip-installed command"""
     try:
-        asyncio.run(main())
+        return asyncio.run(main(argv))
     except KeyboardInterrupt:
         print(f"\n{Colors.YELLOW}[!] Scan interrupted by user{Colors.END}")
+        return 130
     except Exception as e:
         print(f"{Colors.RED}[-] Fatal error: {e}{Colors.END}")
+        return 1
 
 
 if __name__ == "__main__":
-    cli()
+    raise SystemExit(cli())

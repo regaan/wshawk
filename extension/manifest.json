@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WSHawk Companion",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "description": "Capture WebSocket handshakes and sync them into the local WSHawk bridge.",
   "permissions": [
     "storage",

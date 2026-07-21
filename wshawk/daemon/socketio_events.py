@@ -50,5 +50,7 @@ def register_socketio_events(ctx: BridgeContext) -> None:
                     "time": datetime.now().isoformat(),
                 }
                 await ctx.sio.emit("team_activity", activity, room=room.sio_room)
+        except (KeyError, RuntimeError, ValueError) as exc:
+            ctx.logger.warning("Socket.IO disconnect cleanup failed for %s: %s", sid, exc)
         except Exception:
-            pass
+            ctx.logger.exception("Unexpected Socket.IO disconnect cleanup failure for %s", sid)

@@ -71,7 +71,8 @@ def register_system_routes(ctx: BridgeContext) -> None:
                 "secretBackend": secret_backend,
             }
         except Exception as e:
-            return {"status": "error", "msg": str(e)}
+            ctx.logger.exception("Failed to read daemon configuration")
+            raise HTTPException(status_code=500, detail="Unable to read configuration") from e
 
     @ctx.app.post("/config/save")
     async def save_config(data: Dict[str, Any]):
@@ -132,7 +133,8 @@ def register_system_routes(ctx: BridgeContext) -> None:
 
             return {"status": "success"}
         except Exception as e:
-            return {"status": "error", "msg": str(e)}
+            ctx.logger.exception("Failed to save daemon configuration")
+            raise HTTPException(status_code=500, detail="Unable to save configuration") from e
 
     @ctx.app.get("/extension/pairing/status")
     async def extension_pairing_status():
@@ -145,6 +147,11 @@ def register_system_routes(ctx: BridgeContext) -> None:
     async def extension_pairing_reset(data: Dict[str, Any]):
         EXTENSION_PAIRING.revoke(clear_trust=bool((data or {}).get("clear_trust", True)))
         return {"status": "success"}
+
+    @ctx.app.post("/extension/pairing/approve")
+    async def extension_pairing_approve(data: Dict[str, Any]):
+        pairing = EXTENSION_PAIRING.begin_pairing(ttl_seconds=int((data or {}).get("ttl_seconds", 5 * 60)))
+        return {"status": "success", "pairing": pairing}
 
     @ctx.app.post("/ai/context-exploit")
     async def ai_context_exploit(data: Dict[str, Any]):
@@ -160,7 +167,7 @@ def register_system_routes(ctx: BridgeContext) -> None:
             count = data.get("count", 10)
 
             if not selection:
-                return {"status": "error", "msg": "No text selected"}
+                raise HTTPException(status_code=400, detail="No text selected")
 
             ai_engine = None
             try:
@@ -176,8 +183,10 @@ def register_system_routes(ctx: BridgeContext) -> None:
                         base_url=base_url or None,
                         api_key=api_key or None,
                     )
-            except Exception as e:
-                ctx.logger.warning(f"AI engine init failed, using fallback payloads: {e}")
+            except (OSError, TypeError, ValueError) as e:
+                ctx.logger.warning("AI engine configuration failed; using fallback payloads: %s", e)
+            except Exception:
+                ctx.logger.exception("Unexpected AI engine initialization failure; using fallback payloads")
 
             exploit_engine = AIExploitEngine(ai_engine=ai_engine)
             result = await exploit_engine.generate_exploits(
@@ -189,6 +198,13 @@ def register_system_routes(ctx: BridgeContext) -> None:
             )
 
             return {"status": "success", **result}
+        except HTTPException:
+            raise
+        except ImportError as e:
+            raise HTTPException(status_code=503, detail="AI exploit dependencies are unavailable") from e
+        except (OSError, RuntimeError, ValueError) as e:
+            ctx.logger.warning("AI exploit provider failure: %s", e)
+            raise HTTPException(status_code=502, detail="AI exploit provider failed") from e
         except Exception as e:
-            ctx.logger.error(f"AI context-exploit error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            ctx.logger.exception("Unexpected AI context-exploit implementation failure")
+            raise HTTPException(status_code=500, detail="AI exploit generation failed") from e

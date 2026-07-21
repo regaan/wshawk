@@ -10,15 +10,26 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DESKTOP_SRC = REPO_ROOT / "desktop" / "src"
 NODE_LOCK = REPO_ROOT / "desktop" / "package-lock.json"
+PYTHON_VERSION_FILE = REPO_ROOT / "wshawk" / "_version_info.py"
+CITATION_FILE = REPO_ROOT / "CITATION.cff"
+WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
 IGNORED_DIRS = {
     ".git",
+    ".mypy_cache",
     ".pytest_cache",
+    ".ruff_cache",
+    ".wshawk",
     "__pycache__",
+    "artifacts",
+    "bin",
     "build",
     "dist",
     "node_modules",
+    "out",
+    "reports",
     "venv",
 }
+IGNORED_DIR_SUFFIXES = (".egg-info",)
 IGNORED_SUFFIXES = {
     ".pyc",
     ".pyo",
@@ -34,6 +45,13 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def should_ignore_manifest_path(path: Path) -> bool:
+    return any(
+        part in IGNORED_DIRS or part.endswith(IGNORED_DIR_SUFFIXES)
+        for part in path.parts
+    )
 
 
 def collect_python_sbom() -> list[dict]:
@@ -105,11 +123,54 @@ def scan_remote_assets() -> list[dict]:
     return findings
 
 
+def check_version_consistency() -> dict:
+    source = PYTHON_VERSION_FILE.read_text(encoding="utf-8")
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', source, re.MULTILINE)
+    if not match:
+        return {"canonical": "", "artifacts": {}, "mismatches": ["wshawk/_version_info.py"]}
+
+    canonical = match.group(1)
+    package_payload = json.loads((REPO_ROOT / "desktop" / "package.json").read_text(encoding="utf-8"))
+    extension_payload = json.loads((REPO_ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
+    docker_text = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    docker_match = re.search(r'LABEL\s+version=["\']([^"\']+)["\']', docker_text)
+    citation_text = CITATION_FILE.read_text(encoding="utf-8")
+    citation_match = re.search(r'^version:\s*["\']?([^\s"\']+)', citation_text, re.MULTILINE)
+    artifacts = {
+        "desktop/package.json": str(package_payload.get("version", "")),
+        "extension/manifest.json": str(extension_payload.get("version", "")),
+        "Dockerfile": docker_match.group(1) if docker_match else "",
+        "CITATION.cff": citation_match.group(1) if citation_match else "",
+    }
+    mismatches = [path for path, version in artifacts.items() if version != canonical]
+    return {"canonical": canonical, "artifacts": artifacts, "mismatches": mismatches}
+
+
+def scan_unpinned_workflow_actions() -> list[dict]:
+    findings = []
+    for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            match = re.search(r"\buses:\s*([^\s#]+)", line)
+            if not match:
+                continue
+            reference = match.group(1)
+            if reference.startswith("./"):
+                continue
+            revision = reference.rsplit("@", 1)[-1] if "@" in reference else ""
+            if not re.fullmatch(r"[0-9a-f]{40}", revision):
+                findings.append({
+                    "path": str(path.relative_to(REPO_ROOT)),
+                    "line": line_no,
+                    "reference": reference,
+                })
+    return findings
+
+
 def build_repro_manifest() -> dict:
     entries = []
     for path in sorted(REPO_ROOT.rglob("*")):
         relative = path.relative_to(REPO_ROOT)
-        if any(part in IGNORED_DIRS for part in relative.parts):
+        if should_ignore_manifest_path(relative):
             continue
         if path.is_dir():
             continue
@@ -133,11 +194,15 @@ def build_repro_manifest() -> dict:
 
 def run_checks() -> dict:
     remote_assets = scan_remote_assets()
+    versions = check_version_consistency()
+    workflow_pins = scan_unpinned_workflow_actions()
     return {
-        "status": "ok" if not remote_assets else "error",
+        "status": "ok" if not remote_assets and not versions["mismatches"] and not workflow_pins else "error",
         "python_sbom": collect_python_sbom(),
         "node_sbom": collect_node_sbom(),
         "remote_asset_findings": remote_assets,
+        "version_consistency": versions,
+        "unpinned_workflow_actions": workflow_pins,
         "repro_manifest": build_repro_manifest(),
     }
 

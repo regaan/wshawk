@@ -1,13 +1,9 @@
 import asyncio
-import json
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from fastapi import HTTPException
 
 from wshawk.web_pentest import (
-    WebPentestPlatformRuntime,
-    WSHawkAttackChainer,
     WSHawkBlindProbe,
     WSHawkCORSTester,
     WSHawkCSRFForge,
@@ -18,7 +14,6 @@ from wshawk.web_pentest import (
     WSHawkHeaderAnalyzer,
     WSHawkPortScanner,
     WSHawkProtoPolluter,
-    WSHawkProxyCA,
     WSHawkRedirectHunter,
     WSHawkReportGenerator,
     WSHawkSensitiveFinder,
@@ -30,258 +25,28 @@ from wshawk.web_pentest import (
 )
 
 from .context import BridgeContext
-
-
-def _sanitize_session_snapshot(raw_session: Dict[str, Any]) -> Dict[str, Any]:
-    session = raw_session if isinstance(raw_session, dict) else {}
-    snapshots = session.get("snapshots") if isinstance(session.get("snapshots"), dict) else {}
-
-    tables = {}
-    for key, rows in list((snapshots.get("tables") or {}).items())[:32]:
-        if not isinstance(rows, list):
-            continue
-        sanitized_rows = []
-        for row in rows[:500]:
-            if not isinstance(row, list):
-                continue
-            sanitized_rows.append([str(cell)[:4096] for cell in row[:16]])
-        tables[str(key)[:128]] = sanitized_rows
-
-    sections = {}
-    for key, value in list((snapshots.get("sections") or {}).items())[:32]:
-        sections[str(key)[:128]] = str(value)[:65536]
-
-    stats = {}
-    for key, value in list((snapshots.get("stats") or {}).items())[:64]:
-        stats[str(key)[:128]] = str(value)[:256]
-
-    return {
-        "target": str(session.get("target", ""))[:4096],
-        "snapshots": {
-            "tables": tables,
-            "sections": sections,
-            "stats": stats,
-        },
-    }
+from .session_routes import register_session_routes
+from .web_route_support import build_web_route_helpers
+from .web_workflow_routes import register_web_workflow_routes
 
 
 def register_web_routes(ctx: BridgeContext) -> None:
-    runtime = WebPentestPlatformRuntime(ctx.db, ctx.platform_store, ctx.http_proxy_service)
-
-    def _normalize_headers(raw: Any) -> Dict[str, str]:
-        if isinstance(raw, dict):
-            return {str(key): str(value) for key, value in raw.items() if value is not None}
-        if isinstance(raw, str):
-            return ctx.http_proxy_service.parse_headers(raw)
-        return {}
-
-    def _normalize_cookies(raw: Any) -> Dict[str, str]:
-        if isinstance(raw, dict):
-            return {str(key): str(value) for key, value in raw.items() if value is not None}
-        if isinstance(raw, list):
-            cookies: Dict[str, str] = {}
-            for item in raw:
-                if isinstance(item, dict) and item.get("name"):
-                    cookies[str(item["name"])] = str(item.get("value", ""))
-            return cookies
-        if isinstance(raw, str):
-            cookies = {}
-            for pair in raw.split(";"):
-                if "=" not in pair:
-                    continue
-                key, value = pair.split("=", 1)
-                cookies[key.strip()] = value.strip()
-            return cookies
-        return {}
-
-    def _normalize_body(raw: Any) -> str:
-        if raw is None:
-            return ""
-        if isinstance(raw, (dict, list)):
-            return json.dumps(raw)
-        return str(raw)
-
-    def _is_json_content_type(headers: Dict[str, str]) -> bool:
-        content_type = ""
-        for key, value in headers.items():
-            if str(key).lower() == "content-type":
-                content_type = str(value).lower()
-                break
-        return "application/json" in content_type or content_type.endswith("+json")
-
-    def _decode_nested_json(raw: Any, max_depth: int = 2) -> Any:
-        value = raw
-        for _ in range(max_depth):
-            if not isinstance(value, str):
-                break
-            stripped = value.strip()
-            if not stripped:
-                break
-            try:
-                decoded = json.loads(stripped)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                break
-            if decoded == value:
-                break
-            value = decoded
-        return value
-
-    def _normalize_http_request_body(raw: Any, headers: Dict[str, str]) -> Any:
-        if raw is None:
-            return ""
-        if isinstance(raw, (dict, list)):
-            return raw
-        if isinstance(raw, str):
-            decoded = _decode_nested_json(raw)
-            if isinstance(decoded, (dict, list)):
-                return decoded
-        return raw
-
-    def _build_state(
-        data: Dict[str, Any],
-        *,
-        attack_type: str,
-        target_url: str = "",
-        parameters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        project_id = data.get("project_id")
-        if project_id:
-            ctx.require_platform_project(project_id)
-
-        request_context = runtime.resolve_request_context(
-            project_id=project_id,
-            identity_id=data.get("identity_id"),
-            identity_alias=data.get("identity_alias"),
-            headers=_normalize_headers(data.get("headers")),
-            cookies=_normalize_cookies(data.get("cookies")),
-            correlation_id=str(data.get("correlation_id", "") or ""),
-        )
-
-        attack_run = runtime.start_attack(
-            project_id=project_id,
-            attack_type=attack_type,
-            target_url=target_url,
-            identity=request_context.identity,
-            parameters=parameters or {},
-        )
-        return {
-            "project_id": project_id,
-            "request_context": request_context,
-            "attack_run": attack_run,
-            "attack_run_id": attack_run.get("id") if attack_run else None,
-            "identity_id": request_context.identity.get("id") if request_context.identity else None,
-            "identity_alias": request_context.identity.get("alias") if request_context.identity else None,
-        }
-
-    def _attach_state(payload: Dict[str, Any], state: Dict[str, Any]) -> Dict[str, Any]:
-        enriched = dict(payload)
-        enriched["project_id"] = state.get("project_id")
-        enriched["attack_run_id"] = state.get("attack_run_id")
-        enriched["correlation_id"] = state["request_context"].correlation_id
-        if state.get("identity_id"):
-            enriched["identity_id"] = state["identity_id"]
-        if state.get("identity_alias"):
-            enriched["identity_alias"] = state["identity_alias"]
-        return enriched
-
-    def _complete_attack(
-        state: Dict[str, Any],
-        summary: Dict[str, Any],
-        *,
-        note_title: str = "",
-        note_body: str = "",
-        status: str = "completed",
-    ) -> None:
-        runtime.complete_attack(state.get("attack_run_id"), summary, status=status)
-        if state.get("project_id") and note_title and note_body:
-            runtime.add_note(state["project_id"], note_title, note_body)
-
-    def _fail_attack(state: Dict[str, Any], exc: Exception, *, title: str) -> None:
-        summary = {"error": str(exc)}
-        runtime.fail_attack(state.get("attack_run_id"), summary)
-        if state.get("project_id"):
-            runtime.add_note(state["project_id"], title, str(exc))
-
-    def _persist_findings(
-        state: Dict[str, Any],
-        *,
-        target_url: str,
-        category: str,
-        findings: List[Dict[str, Any]],
-        default_severity: str = "medium",
-    ) -> List[Dict[str, Any]]:
-        stored = runtime.add_findings(
-            project_id=state.get("project_id"),
-            attack_run_id=state.get("attack_run_id"),
-            target_url=target_url,
-            category=category,
-            findings=findings,
-            default_severity=default_severity,
-        )
-        if findings and state.get("project_id"):
-            ctx.maybe_store_platform_evidence(
-                state["project_id"],
-                title=f"{category.replace('_', ' ').title()} findings",
-                category=category,
-                payload={"findings": findings, "stored_count": len(stored)},
-                severity=default_severity,
-            )
-        return stored
-
-    async def _run_background(label: str, state: Dict[str, Any], coro):
-        try:
-            await coro
-        except Exception as exc:  # pragma: no cover - defensive logging path
-            _fail_attack(state, exc, title=f"{label} failure")
-            if ctx.sio:
-                await ctx.sio.emit(
-                    "web_attack_error",
-                    _attach_state(
-                        {
-                            "attack_type": label,
-                            "error": str(exc),
-                        },
-                        state,
-                    ),
-                )
-
-    def _normalize_dir_findings(result: Dict[str, Any]) -> List[Dict[str, Any]]:
-        normalized: List[Dict[str, Any]] = []
-        for finding in result.get("findings", []):
-            path = str(finding.get("path", ""))
-            status = int(finding.get("status", 0) or 0)
-            variant_paths = [str(item) for item in finding.get("variant_paths", []) if item]
-            variant_note = ""
-            if variant_paths:
-                variant_note = f" Grouped {len(variant_paths)} near-identical variant path(s): {', '.join(variant_paths)}."
-            lowered = path.lower()
-            if lowered in {"/.env", "/.git/config"}:
-                severity = "high"
-            elif lowered in {"/robots.txt", "/sitemap.xml"} or status in (200, 403):
-                severity = "medium"
-            else:
-                severity = "low"
-            normalized.append(
-                {
-                    "title": f"Exposed path discovered: {path or '/'}",
-                    "detail": f"Directory scanner found {path or '/'} with HTTP {status}.{variant_note}",
-                    "severity": severity,
-                    "path": path,
-                    "status": status,
-                    "url": finding.get("url", ""),
-                    "payload": finding,
-                }
-            )
-        return normalized
-
-    async def _run_vuln_wrapper(url: str, options: Dict[str, Any]):
-        report = await ctx._vuln_scanner.run_scan(url, options)
-        try:
-            scan_id = ctx.db.save_scan(url, report)
-            print(f"Scan saved to DB: {scan_id}")
-        except Exception as exc:  # pragma: no cover - legacy history save
-            print(f"Failed to save scan to DB: {exc}")
-
+    helpers = build_web_route_helpers(ctx)
+    runtime = helpers["runtime"]
+    _normalize_headers = helpers["_normalize_headers"]
+    _normalize_cookies = helpers["_normalize_cookies"]
+    _normalize_body = helpers["_normalize_body"]
+    _is_json_content_type = helpers["_is_json_content_type"]
+    _decode_nested_json = helpers["_decode_nested_json"]
+    _normalize_http_request_body = helpers["_normalize_http_request_body"]
+    _build_state = helpers["_build_state"]
+    _attach_state = helpers["_attach_state"]
+    _complete_attack = helpers["_complete_attack"]
+    _fail_attack = helpers["_fail_attack"]
+    _persist_findings = helpers["_persist_findings"]
+    _run_background = helpers["_run_background"]
+    _normalize_dir_findings = helpers["_normalize_dir_findings"]
+    _run_vuln_wrapper = helpers["_run_vuln_wrapper"]
     @ctx.app.post("/web/request")
     async def web_request(data: Dict[str, Any]):
         url = data.get("url", "").strip()
@@ -629,7 +394,8 @@ def register_web_routes(ctx: BridgeContext) -> None:
         try:
             return {"status": "success", "history": ctx.db.list_all()}
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
+            ctx.logger.exception("Unexpected scan history listing failure")
+            raise HTTPException(status_code=500, detail="Scan history listing failed") from exc
 
     @ctx.app.get("/history/{scan_id}")
     async def api_get_scan(scan_id: str):
@@ -641,7 +407,8 @@ def register_web_routes(ctx: BridgeContext) -> None:
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
+            ctx.logger.exception("Unexpected scan history lookup failure")
+            raise HTTPException(status_code=500, detail="Scan history lookup failed") from exc
 
     @ctx.app.get("/history/compare/{id1}/{id2}")
     async def api_compare_scans(id1: str, id2: str):
@@ -653,7 +420,8 @@ def register_web_routes(ctx: BridgeContext) -> None:
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
+            ctx.logger.exception("Unexpected scan comparison failure")
+            raise HTTPException(status_code=500, detail="Scan comparison failed") from exc
 
     @ctx.app.post("/web/report")
     async def web_report(data: Dict[str, Any]):
@@ -669,7 +437,8 @@ def register_web_routes(ctx: BridgeContext) -> None:
                 path = gen.generate_html(report_data)
             return {"status": "success", "path": path, "format": fmt}
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
+            ctx.logger.exception("Unexpected report generation failure")
+            raise HTTPException(status_code=500, detail="Report generation failed") from exc
 
     @ctx.app.post("/web/fingerprint")
     async def web_fingerprint(data: Dict[str, Any]):
@@ -679,7 +448,15 @@ def register_web_routes(ctx: BridgeContext) -> None:
 
         state = _build_state(data, attack_type="tech_fingerprint", target_url=url)
         try:
-            result = await WSHawkTechFingerprinter().fingerprint(url)
+            result = await WSHawkTechFingerprinter(http_proxy=ctx.http_proxy_service).fingerprint(
+                url,
+                project_id=state.get("project_id"),
+                correlation_id=state["request_context"].correlation_id,
+                attack_run_id=state.get("attack_run_id"),
+                headers=state["request_context"].headers,
+                cookies=state["request_context"].cookies,
+                identity_id=state.get("identity_id"),
+            )
             _complete_attack(
                 state,
                 {"fingerprint_keys": sorted(result.keys())},
@@ -765,7 +542,15 @@ def register_web_routes(ctx: BridgeContext) -> None:
 
         state = _build_state(data, attack_type="waf_detection", target_url=url)
         try:
-            result = await WSHawkWAFDetector().detect(url)
+            result = await WSHawkWAFDetector(http_proxy=ctx.http_proxy_service).detect(
+                url,
+                project_id=state.get("project_id"),
+                correlation_id=state["request_context"].correlation_id,
+                attack_run_id=state.get("attack_run_id"),
+                headers=state["request_context"].headers,
+                cookies=state["request_context"].cookies,
+                identity_id=state.get("identity_id"),
+            )
             _complete_attack(
                 state,
                 {"detected": bool(result.get("detected")), "product": result.get("product", "")},
@@ -852,7 +637,8 @@ def register_web_routes(ctx: BridgeContext) -> None:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
+            ctx.logger.exception("Unexpected DNS lookup failure")
+            raise HTTPException(status_code=500, detail="DNS lookup failed") from exc
 
     @ctx.app.post("/web/csrf")
     async def web_csrf_forge(data: Dict[str, Any]):
@@ -1106,308 +892,5 @@ def register_web_routes(ctx: BridgeContext) -> None:
             _fail_attack(state, exc, title="Prototype pollution failure")
             raise HTTPException(status_code=500, detail=str(exc))
 
-    @ctx.app.post("/proxy/ca/generate")
-    async def proxy_ca_generate(data: Dict[str, Any]):
-        try:
-            return {"status": "success", **await WSHawkProxyCA().generate_ca(force=data.get("force", False))}
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.get("/proxy/ca/info")
-    async def proxy_ca_info():
-        try:
-            return await WSHawkProxyCA().get_ca_info()
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.post("/proxy/ca/host")
-    async def proxy_ca_host_cert(data: Dict[str, Any]):
-        hostname = data.get("hostname", "").strip()
-        if not hostname:
-            raise HTTPException(status_code=400, detail="Hostname required")
-        try:
-            return {"status": "success", **await WSHawkProxyCA().generate_host_cert(hostname)}
-        except FileNotFoundError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.get("/proxy/ca/certs")
-    async def proxy_ca_list_certs():
-        try:
-            return await WSHawkProxyCA().list_certs()
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.post("/web/chain")
-    async def web_attack_chain(data: Dict[str, Any]):
-        steps = data.get("steps", [])
-        playbook = str(data.get("playbook") or "").strip()
-        if not steps and not playbook:
-            raise HTTPException(status_code=400, detail="Steps or playbook required")
-
-        state = _build_state(
-            data,
-            attack_type="attack_chain",
-            target_url=(steps[0].get("url", "") if steps else ""),
-            parameters={"step_count": len(steps), "playbook": playbook or None},
-        )
-        try:
-            result = await WSHawkAttackChainer(
-                sio_instance=ctx.sio,
-                store=ctx.platform_store,
-            ).execute_chain(
-                steps=steps,
-                playbook=playbook,
-                initial_vars=data.get("variables", {}),
-                project_id=state.get("project_id"),
-                correlation_id=state["request_context"].correlation_id,
-                attack_run_id=state.get("attack_run_id"),
-                default_headers=state["request_context"].headers,
-                default_cookies=state["request_context"].cookies,
-                default_url=data.get("default_url", ""),
-                default_ws_url=data.get("default_ws_url", ""),
-                default_identity=state["request_context"].identity,
-            )
-            ws_candidates = sorted(
-                {
-                    value
-                    for value in result.get("variables", {}).values()
-                    if isinstance(value, str) and value.startswith(("ws://", "wss://"))
-                }
-            )
-            if state.get("project_id") and ws_candidates:
-                runtime.add_note(
-                    state["project_id"],
-                    "Cross-protocol pivot candidates",
-                    f"HTTP attack chain extracted potential WS targets: {', '.join(ws_candidates)}",
-                )
-            _complete_attack(
-                state,
-                {
-                    "steps": len(result.get("results", [])),
-                    "variables": sorted(result.get("variables", {}).keys()),
-                    "ws_candidates": ws_candidates,
-                    "playbook": result.get("playbook"),
-                },
-                note_title="Attack chain completed",
-                note_body=(
-                    f"Executed {len(result.get('results', []))} chained steps"
-                    f"{' via playbook ' + result.get('playbook') if result.get('playbook') else ''}."
-                ),
-            )
-            return _attach_state({"status": "success", **result, "ws_candidates": ws_candidates}, state)
-        except ValueError as exc:
-            _fail_attack(state, exc, title="Attack chain failure")
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            _fail_attack(state, exc, title="Attack chain failure")
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.post("/web/extract")
-    async def web_quick_extract(data: Dict[str, Any]):
-        url = data.get("url", "").strip()
-        if not url:
-            raise HTTPException(status_code=400, detail="URL required")
-        try:
-            return {
-                "status": "success",
-                **await WSHawkAttackChainer().quick_extract(
-                    url=url,
-                    patterns=data.get("patterns", []),
-                ),
-            }
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.post("/web/crawl-sensitive")
-    async def web_crawl_sensitive(data: Dict[str, Any]):
-        url = data.get("url", "").strip()
-        if not url:
-            raise HTTPException(status_code=400, detail="URL required")
-
-        state = _build_state(
-            data,
-            attack_type="crawl_sensitive_pipeline",
-            target_url=url,
-            parameters={
-                "max_depth": int(data.get("max_depth", 2)),
-                "max_pages": int(data.get("max_pages", 50)),
-            },
-        )
-
-        async def _pipeline():
-            await ctx.sio.emit("pipeline_phase", _attach_state({"phase": "crawl", "status": "running"}, state))
-            crawler = WSHawkCrawler(sio_instance=ctx.sio, http_proxy=ctx.http_proxy_service)
-            crawl_result = await crawler.crawl(
-                start_url=url,
-                max_depth=int(data.get("max_depth", 2)),
-                max_pages=int(data.get("max_pages", 50)),
-                headers=state["request_context"].headers,
-                cookies=state["request_context"].cookies,
-                project_id=state.get("project_id"),
-                correlation_id=state["request_context"].correlation_id,
-                attack_run_id=state.get("attack_run_id"),
-                identity_id=state.get("identity_id"),
-            )
-
-            pages = crawl_result.get("pages", [])
-            await ctx.sio.emit(
-                "pipeline_phase",
-                _attach_state({"phase": "crawl", "status": "done", "pages_crawled": len(pages)}, state),
-            )
-
-            await ctx.sio.emit("pipeline_phase", _attach_state({"phase": "sensitive", "status": "running"}, state))
-            finder = WSHawkSensitiveFinder(sio_instance=ctx.sio, http_proxy=ctx.http_proxy_service)
-            page_urls = [p["url"] for p in pages if p.get("url")]
-
-            all_findings = []
-            for i, page_url in enumerate(page_urls):
-                try:
-                    result = await finder.scan_url(
-                        page_url,
-                        project_id=state.get("project_id"),
-                        correlation_id=state["request_context"].correlation_id,
-                        attack_run_id=state.get("attack_run_id"),
-                        headers=state["request_context"].headers,
-                        cookies=state["request_context"].cookies,
-                        identity_id=state.get("identity_id"),
-                    )
-                    findings = result.get("findings", [])
-                    all_findings.extend(findings)
-                    await ctx.sio.emit(
-                        "pipeline_page_scanned",
-                        _attach_state(
-                            {
-                                "url": page_url,
-                                "findings_count": len(findings),
-                                "progress": i + 1,
-                                "total": len(page_urls),
-                            },
-                            state,
-                        ),
-                    )
-                except Exception:
-                    pass
-
-            _persist_findings(
-                state,
-                target_url=url,
-                category="sensitive_data",
-                findings=[
-                    {
-                        "title": f"Sensitive data exposure: {item.get('type', 'unknown')}",
-                        "detail": f"Potential sensitive value leaked in response ({item.get('value', '')}).",
-                        "severity": str(item.get("severity", "Medium")).lower(),
-                        "payload": item,
-                    }
-                    for item in all_findings
-                ],
-                default_severity="medium",
-            )
-
-            await ctx.sio.emit(
-                "pipeline_phase",
-                _attach_state({"phase": "sensitive", "status": "done", "total_findings": len(all_findings)}, state),
-            )
-            await ctx.sio.emit(
-                "pipeline_complete",
-                _attach_state(
-                    {
-                        "pages_crawled": len(pages),
-                        "pages_scanned": len(page_urls),
-                        "total_findings": len(all_findings),
-                        "findings": all_findings,
-                    },
-                    state,
-                ),
-            )
-
-            _complete_attack(
-                state,
-                {
-                    "pages_crawled": len(pages),
-                    "pages_scanned": len(page_urls),
-                    "finding_count": len(all_findings),
-                },
-                note_title="Crawl-sensitive pipeline completed",
-                note_body=f"Crawl-sensitive pipeline against {url} scanned {len(page_urls)} pages.",
-            )
-
-        asyncio.create_task(_run_background("crawl_sensitive_pipeline", state, _pipeline()))
-        return _attach_state({"status": "started", "msg": "Crawl → Sensitive pipeline started"}, state)
-
-    @ctx.app.post("/session/save")
-    async def session_save(data: Dict[str, Any]):
-        name = data.get("name", "").strip() or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        safe_name = "".join(c for c in name if c.isalnum() or c in "-_").strip()
-        if not safe_name:
-            safe_name = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-        session_data = {
-            "type": "session_snapshot",
-            "name": safe_name,
-            "created": datetime.now().isoformat(),
-            "version": "4.0.0",
-            "data": _sanitize_session_snapshot(data.get("session", {})),
-        }
-        try:
-            project = ctx.db.save_project(
-                name=safe_name,
-                target_url=session_data["data"].get("target", ""),
-                metadata=session_data,
-                project_id=data.get("project_id"),
-            )
-            return {"status": "success", "path": f"db:{project['id']}", "name": safe_name, "project_id": project["id"]}
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    @ctx.app.post("/session/load")
-    async def session_load(data: Dict[str, Any]):
-        name = data.get("name", "").strip()
-        if not name:
-            raise HTTPException(status_code=400, detail="Session name required")
-
-        project = ctx.db.get_project_by_name(name)
-        if not project:
-            raise HTTPException(status_code=404, detail=f"Session '{name}' not found")
-
-        metadata = project.get("metadata") or {}
-        if "data" not in metadata:
-            metadata = {
-                "type": "session_snapshot",
-                "name": project["name"],
-                "created": project["created_at"],
-                "version": "4.0.0",
-                "data": _sanitize_session_snapshot(metadata),
-            }
-        metadata["data"] = _sanitize_session_snapshot(metadata.get("data", {}))
-        return {"status": "success", "session": metadata, "project_id": project["id"]}
-
-    @ctx.app.get("/session/list")
-    async def session_list():
-        sessions = []
-        for project in ctx.db.list_projects(limit=500):
-            metadata = project.get("metadata") or {}
-            if metadata.get("type") not in ("session_snapshot", None):
-                continue
-            sessions.append(
-                {
-                    "name": project["name"],
-                    "created": metadata.get("created", project["created_at"]),
-                    "size": len(json.dumps(metadata)),
-                    "project_id": project["id"],
-                }
-            )
-
-        return {"status": "success", "sessions": sessions, "count": len(sessions)}
-
-    @ctx.app.delete("/session/delete")
-    async def session_delete(data: Dict[str, Any]):
-        name = data.get("name", "").strip()
-        if not name:
-            raise HTTPException(status_code=400, detail="Session name required")
-
-        if ctx.db.delete_project_by_name(name):
-            return {"status": "success"}
-        raise HTTPException(status_code=404, detail="Session not found")
+    register_web_workflow_routes(ctx, helpers)
+    register_session_routes(ctx)

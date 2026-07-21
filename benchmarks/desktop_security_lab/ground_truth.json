@@ -1,0 +1,304 @@
+{
+  "schema_version": 1,
+  "lab_version": "1.0.0",
+  "name": "WSHawk desktop end-to-end security lab",
+  "description": "Deterministic paired vulnerable and hardened targets for validating the complete WSHawk desktop workflow.",
+  "safety": {
+    "bind": "127.0.0.1",
+    "internet_targets": false,
+    "real_exploitation": false,
+    "synthetic_data_only": true
+  },
+  "profiles": {
+    "vulnerable": "Intentionally returns deterministic vulnerability evidence.",
+    "hardened": "Rejects or safely encodes the same probes and acts as the false-positive control."
+  },
+  "fixtures": {
+    "user_headers": {"Authorization": "Bearer industry-user-token"},
+    "admin_headers": {"Authorization": "Bearer industry-admin-token"},
+    "trusted_origin": "https://trusted.example",
+    "untrusted_origin": "https://attacker.example",
+    "csrf_token": "industry-csrf-token",
+    "http_idempotency_key": "industry-http-idempotency",
+    "websocket_idempotency_key": "industry-ws-idempotency"
+  },
+  "standards": [
+    {
+      "name": "OWASP Application Security Verification Standard",
+      "version": "5.0.0",
+      "url": "https://owasp.org/www-project-application-security-verification-standard/"
+    },
+    {
+      "name": "OWASP Web Security Testing Guide",
+      "version": "4.2",
+      "url": "https://owasp.org/www-project-web-security-testing-guide/v42/"
+    },
+    {
+      "name": "OWASP API Security Top 10",
+      "version": "2023",
+      "url": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/"
+    }
+  ],
+  "cases": [
+    {
+      "id": "DSLAB-HTTP-001",
+      "channel": "http",
+      "technique": "security_headers",
+      "cwe": "CWE-693",
+      "severity": "medium",
+      "target": "/{profile}/headers",
+      "probe": "Analyze defensive response headers",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-002",
+      "channel": "http",
+      "technique": "cors_origin_reflection",
+      "cwe": "CWE-942",
+      "severity": "high",
+      "target": "/{profile}/cors",
+      "probe": "Send an untrusted Origin with credentials",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-003",
+      "channel": "http",
+      "technique": "broken_object_level_authorization",
+      "cwe": "CWE-639",
+      "severity": "high",
+      "target": "/{profile}/api/orders/order-beta",
+      "probe": "Read a second tenant's order as the tenant-alpha user",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-004",
+      "channel": "http",
+      "technique": "server_side_request_forgery",
+      "cwe": "CWE-918",
+      "severity": "high",
+      "target": "/{profile}/api/import?url=https://example.org",
+      "probe": "Replace url with a cloud metadata or loopback destination",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-005",
+      "channel": "http",
+      "technique": "open_redirect",
+      "cwe": "CWE-601",
+      "severity": "medium",
+      "target": "/{profile}/redirect?next=/",
+      "probe": "Replace next with an external HTTPS URL",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-006",
+      "channel": "http",
+      "technique": "sensitive_data_exposure",
+      "cwe": "CWE-200",
+      "severity": "high",
+      "target": "/{profile}/api/config",
+      "probe": "Inspect the authenticated configuration response",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-007",
+      "channel": "http",
+      "technique": "cross_site_request_forgery",
+      "cwe": "CWE-352",
+      "severity": "high",
+      "target": "/{profile}/transfer",
+      "probe": "Replay a state-changing request without a CSRF token",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-008",
+      "channel": "http",
+      "technique": "duplicate_action_race",
+      "cwe": "CWE-362",
+      "severity": "high",
+      "target": "/{profile}/api/redeem",
+      "probe": "Send concurrent duplicate voucher redemptions",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-009",
+      "channel": "http",
+      "technique": "sql_injection",
+      "cwe": "CWE-89",
+      "severity": "critical",
+      "target": "/{profile}/api/search?q=benchmark",
+      "probe": "Inject a quote, boolean expression, or UNION payload into q",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-010",
+      "channel": "http",
+      "technique": "reflected_cross_site_scripting",
+      "cwe": "CWE-79",
+      "severity": "high",
+      "target": "/{profile}/api/search?q=benchmark",
+      "probe": "Inject an HTML or script event-handler payload into q",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-011",
+      "channel": "http",
+      "technique": "os_command_injection",
+      "cwe": "CWE-78",
+      "severity": "critical",
+      "target": "/{profile}/api/execute?cmd=status",
+      "probe": "Inject a shell separator and identity command into cmd",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-012",
+      "channel": "http",
+      "technique": "path_traversal",
+      "cwe": "CWE-22",
+      "severity": "critical",
+      "target": "/{profile}/api/file?path=public.txt",
+      "probe": "Traverse to a synthetic operating-system password file",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-013",
+      "channel": "http",
+      "technique": "xml_external_entity",
+      "cwe": "CWE-611",
+      "severity": "critical",
+      "target": "/{profile}/api/xml",
+      "probe": "POST XML containing a local-file external entity",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-014",
+      "channel": "http",
+      "technique": "nosql_injection",
+      "cwe": "CWE-943",
+      "severity": "high",
+      "target": "/{profile}/api/nosql?filter=benchmark",
+      "probe": "Inject a MongoDB operator into filter",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-015",
+      "channel": "http",
+      "technique": "prototype_pollution",
+      "cwe": "CWE-1321",
+      "severity": "high",
+      "target": "/{profile}/merge",
+      "probe": "Submit __proto__ and constructor.prototype canaries",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-HTTP-016",
+      "channel": "http",
+      "technique": "exposed_environment_file",
+      "cwe": "CWE-538",
+      "severity": "high",
+      "target": "/{profile}/.env",
+      "probe": "Discover and inspect an environment configuration file",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-001",
+      "channel": "websocket",
+      "technique": "cross_tenant_subscription",
+      "cwe": "CWE-639",
+      "severity": "high",
+      "target": "/{profile}/ws",
+      "probe": "Mutate tenant-alpha subscription to tenant-beta",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-002",
+      "channel": "websocket",
+      "technique": "duplicate_action_race",
+      "cwe": "CWE-362",
+      "severity": "high",
+      "target": "/{profile}/ws",
+      "probe": "Send concurrent redeem actions with the same idempotency key",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-003",
+      "channel": "websocket",
+      "technique": "cross_site_websocket_hijacking",
+      "cwe": "CWE-346",
+      "severity": "high",
+      "target": "/{profile}/ws",
+      "probe": "Connect with an untrusted Origin",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-004",
+      "channel": "websocket",
+      "technique": "sql_injection",
+      "cwe": "CWE-89",
+      "severity": "critical",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=probe, attack=sqli with a SQL payload",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-005",
+      "channel": "websocket",
+      "technique": "cross_site_scripting",
+      "cwe": "CWE-79",
+      "severity": "high",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=probe, attack=xss with a reflected HTML payload",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-006",
+      "channel": "websocket",
+      "technique": "os_command_injection",
+      "cwe": "CWE-78",
+      "severity": "critical",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=probe, attack=command with a shell payload",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-007",
+      "channel": "websocket",
+      "technique": "path_traversal",
+      "cwe": "CWE-22",
+      "severity": "critical",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=probe, attack=lfi with a traversal payload",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-008",
+      "channel": "websocket",
+      "technique": "xml_external_entity",
+      "cwe": "CWE-611",
+      "severity": "critical",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=probe, attack=xxe with an external entity",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-009",
+      "channel": "websocket",
+      "technique": "nosql_injection",
+      "cwe": "CWE-943",
+      "severity": "high",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=probe, attack=nosql with a MongoDB operator",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    },
+    {
+      "id": "DSLAB-WS-010",
+      "channel": "websocket",
+      "technique": "server_side_request_forgery",
+      "cwe": "CWE-918",
+      "severity": "high",
+      "target": "/{profile}/probe-ws",
+      "probe": "Send action=fetch_url with a loopback or cloud metadata target",
+      "expected": {"vulnerable": "finding_required", "hardened": "no_finding"}
+    }
+  ]
+}

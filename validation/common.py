@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 import socket
 import threading
 import time
@@ -11,6 +12,93 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import uvicorn
+
+
+REDACTION_MARKER = "[REDACTED]"
+SENSITIVE_ARTIFACT_KEYS = {
+    "access_token",
+    "api_key",
+    "apikey",
+    "approval_token",
+    "auth_token",
+    "authorization",
+    "bearer",
+    "bearer_token",
+    "client_secret",
+    "cookie",
+    "csrf",
+    "csrf_token",
+    "jwt",
+    "passwd",
+    "password",
+    "refresh_token",
+    "secret",
+    "session",
+    "session_id",
+    "session_token",
+    "set_cookie",
+    "token",
+    "x_api_key",
+    "xsrf",
+    "xsrf_token",
+}
+SECRET_QUERY_PARAM_RE = re.compile(
+    r"(?i)(\b(?:access_token|api[_-]?key|approval_token|csrf|jwt|refresh_token|session|session_id|token|xsrf)=)"
+    r"([^&#\s\"']+)"
+)
+
+
+def _normalized_artifact_key(key: Any) -> str:
+    return re.sub(r"[\s-]+", "_", str(key).strip().lower())
+
+
+def _collect_artifact_secrets(value: Any, secrets: set[str]) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            normalized_key = _normalized_artifact_key(key)
+            if normalized_key in SENSITIVE_ARTIFACT_KEYS and isinstance(item, str):
+                candidate = item.strip()
+                if len(candidate) >= 4:
+                    secrets.add(candidate)
+                    if normalized_key in {"authorization", "bearer", "bearer_token"}:
+                        parts = candidate.split(None, 1)
+                        if len(parts) == 2 and parts[0].lower() == "bearer" and len(parts[1]) >= 4:
+                            secrets.add(parts[1])
+                    if normalized_key in {"cookie", "set_cookie"}:
+                        for chunk in candidate.split(";"):
+                            if "=" not in chunk:
+                                continue
+                            cookie_value = chunk.split("=", 1)[1].strip()
+                            if len(cookie_value) >= 4:
+                                secrets.add(cookie_value)
+            _collect_artifact_secrets(item, secrets)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _collect_artifact_secrets(item, secrets)
+
+
+def redact_artifact_data(value: Any) -> Any:
+    """Recursively remove authentication material from validation artifacts."""
+
+    secrets: set[str] = set()
+    _collect_artifact_secrets(value, secrets)
+    ordered_secrets = sorted(secrets, key=len, reverse=True)
+
+    def redact(item: Any, key: Any = None) -> Any:
+        if key is not None and _normalized_artifact_key(key) in SENSITIVE_ARTIFACT_KEYS:
+            return REDACTION_MARKER if item is not None else None
+        if isinstance(item, dict):
+            return {str(child_key): redact(child_value, child_key) for child_key, child_value in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [redact(child) for child in item]
+        if isinstance(item, str):
+            redacted = item
+            for secret in ordered_secrets:
+                redacted = redacted.replace(secret, REDACTION_MARKER)
+            return SECRET_QUERY_PARAM_RE.sub(lambda match: f"{match.group(1)}{REDACTION_MARKER}", redacted)
+        return item
+
+    return redact(value)
 
 
 async def asgi_request(
@@ -84,7 +172,7 @@ def evaluate_expected(result: dict[str, Any], expected: dict[str, Any]) -> dict[
 def write_json(path: str | Path, data: dict[str, Any]) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    target.write_text(json.dumps(redact_artifact_data(data), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def find_free_port(host: str = "127.0.0.1") -> int:

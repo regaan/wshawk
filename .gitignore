@@ -132,3 +132,11 @@ debian/
 # Validation run outputs
 validation/artifacts/*
 !validation/artifacts/README.md
+
+# Desktop Environments
+electron-desktop
+
+# Ignore electron preview workflow
+.github/workflows/electron-go-preview.yml
+
+

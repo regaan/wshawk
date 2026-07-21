@@ -163,6 +163,33 @@ class HTTPAttackServiceTests(unittest.TestCase):
         self.assertEqual(len(store.list_attack_runs(project["id"])), 1)
         self.assertEqual(len(store.list_http_flows(project["id"])), 6)
 
+    def test_http_race_does_not_count_json_error_as_success(self):
+        class ApplicationErrorProxy(WSHawkHTTPProxy):
+            async def send_request(self, **kwargs):
+                return {
+                    "status": "200",
+                    "headers": "content-type: application/json",
+                    "headers_dict": {"content-type": "application/json"},
+                    "cookies": {},
+                    "body": '{"ok":false,"error":"duplicate rejected"}',
+                }
+
+        async def scenario():
+            return await HTTPRaceService(http_proxy=ApplicationErrorProxy()).run(
+                project_id="application-error-project",
+                method="POST",
+                url="https://target.test/api/redeem",
+                body='{"code":"ALREADY-USED"}',
+                concurrency=2,
+                waves=2,
+                mode="duplicate_action",
+            )
+
+        result = asyncio.run(scenario())
+        self.assertEqual(result["summary"]["success_count"], 0)
+        self.assertFalse(result["summary"]["duplicate_success_observed"])
+        self.assertFalse(result["summary"]["suspicious_race_window"])
+
     def test_http_templates_normalize_prefixed_urls(self):
         template = build_http_template(
             method="POST",

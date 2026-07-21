@@ -1,7 +1,14 @@
 from .authz_diff import WebSocketAuthzDiffService, authz_diff_websocket
 from .common import build_cookie_header, build_ws_headers, normalize_ws_message, serialize_ws_payload, summarize_authz_diff
 from .http_authz_diff import HTTPAuthzDiffService
-from .http_common import build_http_template, compose_cookie_header, merge_http_identity, normalize_http_url, summarize_http_authz_diff
+from .http_common import (
+    build_http_template,
+    compose_cookie_header,
+    http_result_effective_success,
+    merge_http_identity,
+    normalize_http_url,
+    summarize_http_authz_diff,
+)
 from .http_race import HTTPRaceService
 from .http_replay import HTTPReplayService, replay_http_request
 from .race import WebSocketRaceService
@@ -22,6 +29,7 @@ __all__ = [
     "build_http_template",
     "build_cookie_header",
     "compose_cookie_header",
+    "http_result_effective_success",
     "build_ws_headers",
     "generate_subscription_mutations",
     "merge_http_identity",

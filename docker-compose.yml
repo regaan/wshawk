@@ -1,16 +1,19 @@
-version: '3.8'
-
 services:
   wshawk:
     build: .
-    image: wshawk/wshawk:latest
+    image: rothackers/wshawk:latest
     container_name: wshawk
-    # Network mode host for easier WebSocket testing
-    network_mode: host
-    # Mount current directory for reports
+    networks:
+      - wshawk-network
     volumes:
       - ./reports:/app/reports
-    # Override entrypoint for interactive use
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     entrypoint: /bin/bash
     stdin_open: true
     tty: true
@@ -21,6 +24,7 @@ services:
   vulnerable-server:
     image: python:3.11-slim
     container_name: wshawk-test-server
+    profiles: [lab]
     ports:
       - "8765:8765"
     volumes:

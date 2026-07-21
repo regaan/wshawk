@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const os = require('os');
+const { spawn, execFileSync } = require('child_process');
 const fs = require('fs');
 
 let mainWindow;
@@ -16,10 +17,10 @@ const sidecarState = {
 
 const WSHAWK_E2E = process.env.WSHAWK_E2E === '1' || process.env.BASILISK_E2E === '1';
 const WSHAWK_E2E_AUTOEXIT = process.env.WSHAWK_E2E_AUTOEXIT === '1' || process.env.BASILISK_E2E_AUTOEXIT === '1';
-const WSHAWK_E2E_OUT = process.env.WSHAWK_E2E_OUT || process.env.BASILISK_E2E_OUT || '/tmp/wshawk-e2e.json';
+const WSHAWK_E2E_OUT = process.env.WSHAWK_E2E_OUT || process.env.BASILISK_E2E_OUT || path.join(os.tmpdir(), 'wshawk-e2e.json');
 const WSHAWK_E2E_NO_SANDBOX = process.env.WSHAWK_E2E_NO_SANDBOX === '1';
 const WSHAWK_DESKTOP_SMOKE = process.env.WSHAWK_DESKTOP_SMOKE === '1';
-const WSHAWK_DESKTOP_SMOKE_OUT = process.env.WSHAWK_DESKTOP_SMOKE_OUT || '/tmp/wshawk-desktop-smoke.json';
+const WSHAWK_DESKTOP_SMOKE_OUT = process.env.WSHAWK_DESKTOP_SMOKE_OUT || path.join(os.tmpdir(), 'wshawk-desktop-smoke.json');
 const WSHAWK_DESKTOP_SMOKE_TIMEOUT_MS = Number.parseInt(process.env.WSHAWK_DESKTOP_SMOKE_TIMEOUT_MS || '12000', 10);
 let e2eSnapshotTimer = null;
 let e2eSnapshotWritten = false;
@@ -35,7 +36,7 @@ if (process.env.BASILISK_E2E && !process.env.WSHAWK_E2E) {
     console.warn('[E2E] BASILISK_E2E is deprecated; use WSHAWK_E2E instead.');
 }
 
-if (WSHAWK_E2E) {
+if (WSHAWK_E2E || WSHAWK_DESKTOP_SMOKE) {
     process.env.LIBGL_ALWAYS_SOFTWARE = '1';
     app.disableHardwareAcceleration();
     app.commandLine.appendSwitch('headless');
@@ -141,6 +142,34 @@ function maybeCompleteDesktopSmoke(reason) {
                 sidecar: sidecarState,
             });
         });
+    }
+}
+
+function stopPythonSidecar() {
+    const child = pythonProcess;
+    pythonProcess = null;
+
+    if (!child || !child.pid || child.exitCode !== null || child.signalCode !== null) {
+        return;
+    }
+
+    try {
+        if (process.platform === 'win32') {
+            // PyInstaller one-file executables can create a child process. Kill the
+            // complete tree so an Electron shutdown cannot leave the bridge behind.
+            execFileSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+                stdio: 'ignore',
+                windowsHide: true,
+            });
+        } else {
+            child.kill('SIGTERM');
+        }
+    } catch (error) {
+        try {
+            child.kill();
+        } catch (killError) {
+            console.warn(`[Main] Failed to stop sidecar: ${killError.message || error.message}`);
+        }
     }
 }
 
@@ -266,18 +295,28 @@ function scheduleE2ESnapshot(reason, delayMs = 3500) {
 
 function resolveDevPythonExecutable() {
     const repoRoot = path.join(__dirname, '..');
+    const configuredPython = String(process.env.WSHAWK_PYTHON || '').trim();
+    const activeVirtualEnv = String(process.env.VIRTUAL_ENV || '').trim();
     const candidates = process.platform === 'win32'
         ? [
+            configuredPython,
+            activeVirtualEnv ? path.join(activeVirtualEnv, 'Scripts', 'python.exe') : '',
+            path.join(repoRoot, '.venv', 'Scripts', 'python.exe'),
             path.join(repoRoot, 'venv', 'Scripts', 'python.exe'),
             'python',
+            'python3',
+            'py',
         ]
         : [
+            configuredPython,
+            activeVirtualEnv ? path.join(activeVirtualEnv, 'bin', 'python') : '',
+            path.join(repoRoot, '.venv', 'bin', 'python'),
             path.join(repoRoot, 'venv', 'bin', 'python'),
             'python3',
             'python',
         ];
 
-    for (const candidate of candidates) {
+    for (const candidate of candidates.filter(Boolean)) {
         if (candidate.includes(path.sep)) {
             if (fs.existsSync(candidate)) {
                 return candidate;
@@ -285,7 +324,7 @@ function resolveDevPythonExecutable() {
             continue;
         }
         try {
-            execSync(`${candidate} --version`, { stdio: 'ignore' });
+            execFileSync(candidate, ['--version'], { stdio: 'ignore' });
             return candidate;
         } catch (_) {
             // try next candidate
@@ -350,7 +389,7 @@ function sanitizeProjectState(raw) {
     const history = Array.isArray(source.history) ? source.history : [];
 
     return {
-        version: safeString(source.version || '4.0.0', 32),
+        version: safeString(source.version || app.getVersion(), 32),
         projectId: safeString(source.projectId, 128),
         projectName: safeString(source.projectName, 256),
         url: safeString(source.url, 4096),
@@ -627,7 +666,7 @@ function startPythonSidecar() {
 
 function checkPythonDependency() {
     try {
-        const pyVersion = execSync(`${resolveDevPythonExecutable()} --version`, { encoding: 'utf8', stdio: 'pipe' });
+        const pyVersion = execFileSync(resolveDevPythonExecutable(), ['--version'], { encoding: 'utf8', stdio: 'pipe' });
         console.log(`[+] System Python Check Passed: ${pyVersion.trim()}`);
     } catch (err) {
         console.error('[-] Python not found on the system');
@@ -747,10 +786,10 @@ app.whenReady().then(() => {
     });
 });
 
+app.on('before-quit', stopPythonSidecar);
+
 app.on('window-all-closed', () => {
-    if (pythonProcess) {
-        pythonProcess.kill();
-    }
+    stopPythonSidecar();
     if (WSHAWK_E2E && !e2eSnapshotWritten) {
         writeE2ESnapshot({
             reason: 'window-all-closed',

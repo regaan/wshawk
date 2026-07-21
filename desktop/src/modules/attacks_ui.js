@@ -515,6 +515,8 @@ const btnSettings = document.getElementById('btn-settings');
 const settingsModal = document.getElementById('settings-modal');
 const btnSettingsClose = document.getElementById('btn-settings-close');
 const btnSettingsSave = document.getElementById('btn-settings-save');
+const btnExtensionPairingCode = document.getElementById('btn-extension-pairing-code');
+const extensionPairingCode = document.getElementById('extension-pairing-code');
 
 console.log('[UI] Initializing Modals...', { btnSettings: !!btnSettings, settingsModal: !!settingsModal });
 
@@ -606,6 +608,26 @@ if (btnSettings && settingsModal) {
             }
         });
     }
+}
+
+if (btnExtensionPairingCode && extensionPairingCode) {
+    btnExtensionPairingCode.addEventListener('click', async () => {
+        extensionPairingCode.textContent = 'Generating approval code...';
+        try {
+            const response = await fetch('/extension/pairing/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ttl_seconds: 300 })
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') {
+                throw new Error(data.detail || data.msg || 'Pairing approval failed');
+            }
+            extensionPairingCode.textContent = `Code: ${data.pairing.approval_code} (expires in 5 minutes)`;
+        } catch (error) {
+            extensionPairingCode.textContent = `Unable to generate pairing code: ${error.message}`;
+        }
+    });
 }
 
 // Settings modal click outside to close

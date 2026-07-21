@@ -11,24 +11,14 @@ import os
 import base64
 from datetime import datetime
 from typing import List, Dict, Optional, Any
+from .._version_info import __version__
 
 try:
     import aiohttp
 except ImportError:
     aiohttp = None
 
-try:
-    from ..__main__ import Logger
-except ImportError:
-    class Logger:
-        @staticmethod
-        def info(msg): print(f"[*] {msg}")
-        @staticmethod
-        def success(msg): print(f"[+] {msg}")
-        @staticmethod
-        def error(msg): print(f"[-] {msg}")
-        @staticmethod
-        def warning(msg): print(f"[!] {msg}")
+from ..console import Logger
 
 
 class JiraIntegration:
@@ -318,7 +308,7 @@ class JiraIntegration:
             f"|CVSS Vector|{vuln.get('cvss_vector', 'N/A')}|\n"
             f"|Target|{scan_info.get('target', 'Unknown')}|\n"
             f"|Browser Verified|{'Yes ✅' if vuln.get('browser_verified') else 'No'}|\n"
-            f"|Scanner|WSHawk v4.0.0|\n\n"
+            f"|Scanner|WSHawk v{__version__}|\n\n"
             f"h3. Description\n"
             f"{vuln.get('description', 'N/A')}\n\n"
             f"h3. Payload\n"

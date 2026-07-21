@@ -137,7 +137,7 @@
 
         resetFindingsView({ findingsContainer, globalVulns, message = 'No vulnerabilities detected on the target.' }) {
             this.clearFindingStore(globalVulns);
-            findingsContainer.innerHTML = `<div class="empty-state">${global.esc ? global.esc(message) : message}</div>`;
+            global.WSHawkDOM.emptyState(findingsContainer, message);
         },
 
         evidenceToFinding(evidence) {
@@ -176,33 +176,38 @@
 
         addFinding({ findingsContainer, globalVulns, vuln, options = {} }) {
             if (findingsContainer.querySelector('.empty-state')) {
-                findingsContainer.innerHTML = '';
+                global.WSHawkDOM.clear(findingsContainer);
             }
             const vId = options.findingId || Math.random().toString(36).substr(2, 9);
             if (globalVulns[vId]) {
                 return vId;
             }
             globalVulns[vId] = vuln;
-            const esc = global.esc || ((value) => String(value));
             const severity = normalizeSeverity(vuln.severity || 'LOW');
-            const html = `
-                <div class="finding-card ${severity}" data-severity="${severity}" data-finding-id="${esc(vId)}">
-                    <div class="f-title" style="display: flex; gap: 8px; align-items: center;">
-                        <span class="f-name" style="flex: 1;">${esc(vuln.type)}</span>
-                        <button class="f-copy-btn" data-action="copy-finding" data-finding-id="${esc(vId)}">Copy</button>
-                        <button class="btn primary" style="background: var(--safe); font-size: 11px; padding: 4px 10px; border: none; cursor: pointer; border-radius: 4px;" data-action="export-poc" data-finding-id="${esc(vId)}">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                            Export PoC
-                        </button>
-                        <span class="sev-badge sev-${severity}">${esc(severity)}</span>
-                    </div>
-                    <div class="f-desc">${esc(vuln.description)}</div>
-                    <div class="f-payload">${esc(vuln.payload)}</div>
-                </div>
-            `;
-            findingsContainer.insertAdjacentHTML('afterbegin', html);
+            const dom = global.WSHawkDOM;
+            const title = dom.element('div', { className: 'f-title' }, [
+                dom.element('span', { className: 'f-name', text: vuln.type }),
+                dom.element('button', {
+                    className: 'f-copy-btn',
+                    text: 'Copy',
+                    dataset: { action: 'copy-finding', findingId: vId },
+                }),
+                dom.element('button', {
+                    className: 'btn primary finding-export-btn',
+                    text: 'Export PoC',
+                    dataset: { action: 'export-poc', findingId: vId },
+                }),
+                dom.badge(`sev-badge sev-${severity}`, severity),
+            ]);
+            const card = dom.element('div', {
+                className: `finding-card ${severity}`,
+                dataset: { severity, findingId: vId },
+            }, [
+                title,
+                dom.element('div', { className: 'f-desc', text: vuln.description }),
+                dom.element('div', { className: 'f-payload', text: vuln.payload }),
+            ]);
+            findingsContainer.prepend(card);
             return vId;
         },
 
@@ -223,7 +228,7 @@
             }
 
             this.clearFindingStore(globalVulns);
-            findingsContainer.innerHTML = '';
+            global.WSHawkDOM.clear(findingsContainer);
             ordered.forEach(evidence => {
                 this.addFinding({
                     findingsContainer,

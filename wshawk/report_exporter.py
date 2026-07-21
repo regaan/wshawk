@@ -12,6 +12,7 @@ import io
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from pathlib import Path
+from ._version_info import __version__
 
 # Import CVSS calculator
 try:
@@ -77,7 +78,9 @@ class ReportExporter:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_file = f"wshawk_report_{timestamp}{ext}"
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        # ``csv.writer`` already emits RFC 4180 CRLF line endings. Disabling
+        # text-mode translation prevents Windows from turning them into CRCRLF.
+        with open(output_file, 'w', encoding='utf-8', newline='') as f:
             f.write(content)
 
         return output_file
@@ -121,7 +124,7 @@ class ReportExporter:
 
         report = {
             'wshawk_report': {
-                'version': '4.0.0',
+                'version': __version__,
                 'generated_at': datetime.now().isoformat(),
                 'scanner': 'WSHawk by Regaan (@regaan)',
                 'format_version': '1.0'
@@ -218,7 +221,7 @@ class ReportExporter:
         writer.writerow(['Duration (seconds)', scan_info.get('duration', 0)])
         writer.writerow(['Messages Sent', scan_info.get('messages_sent', 0)])
         writer.writerow(['Messages Received', scan_info.get('messages_received', 0)])
-        writer.writerow(['Scanner', 'WSHawk V4.0.0 by Regaan'])
+        writer.writerow(['Scanner', f'WSHawk V{__version__} by Regaan'])
 
         return output.getvalue()
 
@@ -291,8 +294,8 @@ class ReportExporter:
                 'tool': {
                     'driver': {
                         'name': 'WSHawk',
-                        'version': '4.0.0',
-                        'semanticVersion': '4.0.0',
+                        'version': __version__,
+                        'semanticVersion': __version__,
                         'informationUri': 'https://github.com/regaan/wshawk',
                         'organization': 'Rot Hackers',
                         'rules': list(rules.values())

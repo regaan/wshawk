@@ -1,7 +1,7 @@
 # WSHawk - Professional WebSocket Security Scanner
 # Multi-stage build for smaller image size
 
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /app
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY setup.py pyproject.toml README.md ./
+COPY setup.py pyproject.toml README.md LICENSE ./
 COPY wshawk/ ./wshawk/
 
 # Install Python dependencies
@@ -55,7 +55,7 @@ CMD ["--help"]
 # Labels (OpenContainers standard for GitHub Container Registry)
 LABEL maintainer="Regaan"
 LABEL description="WSHawk - Professional WebSocket Security Scanner with Defensive Validation"
-LABEL version="4.0.0"
+LABEL version="4.0.2"
 LABEL org.opencontainers.image.source="https://github.com/regaan/wshawk"
 LABEL org.opencontainers.image.description="Professional WebSocket security scanner with real vulnerability verification, defensive validation, and CVSS scoring"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"

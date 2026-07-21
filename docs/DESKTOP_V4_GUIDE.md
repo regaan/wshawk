@@ -1,6 +1,6 @@
 # WSHawk Desktop v4 — Full Feature Guide
 
-> **Version 4.0.0** · Author: Regaan ([@regaan](https://github.com/regaan))
+> **Version 4.0.2** · Author: Regaan ([@regaan](https://github.com/regaan))
 > Practical guide for using the WSHawk desktop app for WebSocket testing, web pentesting, replay, AuthZ diffing, race testing, and evidence collection.
 
 ---
@@ -73,7 +73,7 @@ If you used the v3 desktop, the main mental shift is this:
 
 ### Requirements
 
-- Python `3.8+`
+- Python `3.10–3.13`
 - Node.js `18+`
 - npm
 - Playwright Chromium if you want browser-assisted XSS evidence collection
@@ -83,9 +83,9 @@ If you used the v3 desktop, the main mental shift is this:
 ```bash
 git clone https://github.com/regaan/wshawk
 cd wshawk
-pip install -e .
+python -m pip install -e ".[browser]"
 cd desktop
-npm install
+npm ci
 npm start
 ```
 

@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bridgeUrlInput = document.getElementById('bridgeUrl');
     const projectIdInput = document.getElementById('projectId');
     const captureScopesInput = document.getElementById('captureScopes');
+    const pairingCodeInput = document.getElementById('pairingCode');
     const autoDetectCheckbox = document.getElementById('autoDetectBridge');
     const statusText = document.getElementById('statusText');
 
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bridgeUrlInput.value = config.bridgeUrl || config.lastDetectedBridgeUrl || '';
         projectIdInput.value = config.projectId || '';
         captureScopesInput.value = config.captureScopes || '';
+        pairingCodeInput.value = config.pairingCode || '';
         autoDetectCheckbox.checked = config.autoDetectBridge !== false;
         updateUI(config.capturingEnabled !== false, config.lastBridgeStatus || null, config);
     }
@@ -72,10 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
             bridgeUrl: bridgeUrlInput.value,
             projectId: projectIdInput.value,
             captureScopes: captureScopesInput.value,
+            pairingCode: pairingCodeInput.value.replace(/\D/g, '').slice(0, 6),
             autoDetectBridge: autoDetectCheckbox.checked,
             capturingEnabled,
         });
+        if (!response.ok) {
+            statusText.textContent = response.error || 'Invalid extension configuration.';
+            statusText.style.color = '#f87171';
+            return false;
+        }
         updateUI(response.config?.capturingEnabled !== false, response.config?.lastBridgeStatus || null, response.config || {});
+        return true;
     }
 
     async function detectBridge() {
@@ -101,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await saveConfig();
     });
 
-    [bridgeUrlInput, projectIdInput, captureScopesInput].forEach((element) => {
+    [bridgeUrlInput, projectIdInput, captureScopesInput, pairingCodeInput].forEach((element) => {
         element.addEventListener('change', () => {
             void saveConfig();
         });

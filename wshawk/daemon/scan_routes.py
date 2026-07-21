@@ -3,8 +3,10 @@ from typing import Any, Dict, List, Optional
 
 import websockets
 from fastapi import HTTPException
+from websockets.exceptions import ConnectionClosed, WebSocketException
 
-from wshawk.__main__ import WSPayloads
+from wshawk.dom_runtime import DOM_PROTOCOL_ERRORS
+from wshawk.payload_catalog import WSPayloads
 from wshawk.scanner_v2 import WSHawkV2
 
 from .context import BridgeContext
@@ -169,7 +171,7 @@ def register_scan_routes(ctx: BridgeContext) -> None:
             )
             ctx.state.scan_context = {}
         except Exception as e:
-            print(f"[!] Scan Task Error: {e}")
+            ctx.logger.exception("Unexpected scanner task failure")
             await ctx.sio.emit("scan_error", {"id": scan_id, "error": str(e)})
             ctx.state.scanner = None
             ctx.maybe_log_platform_event(
@@ -179,6 +181,8 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                 target=ctx.state.scan_context.get("target_url", ""),
             )
             ctx.state.scan_context = {}
+        finally:
+            ctx.state.release_task("scan_task", asyncio.current_task())
 
     async def run_blaster_task(
         url: str,
@@ -207,8 +211,11 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                 if capture_service.is_available:
                     await capture_service.ensure_started()
                     invader = capture_service.engine
-            except Exception as e:
-                ctx.logger.warning(f"DOM Invader init failed: {e}")
+            except (ImportError, *DOM_PROTOCOL_ERRORS) as e:
+                ctx.logger.warning("DOM Invader unavailable: %s", e)
+                invader = None
+            except Exception:
+                ctx.logger.exception("Unexpected DOM Invader initialization failure")
                 invader = None
 
         def apply_template(p: str) -> str:
@@ -223,8 +230,10 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                 tokens = await replay_service.replay_auth_flow(auth_flow)
                 if tokens.valid:
                     return tokens.headers
-            except Exception as e:
-                ctx.logger.warning(f"Auth replay failed: {e}")
+            except DOM_PROTOCOL_ERRORS as e:
+                ctx.logger.warning("Auth replay browser/protocol failure: %s", e)
+            except Exception:
+                ctx.logger.exception("Unexpected auth replay implementation failure")
             return {}
 
         ws_headers = {}
@@ -248,8 +257,8 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                             try:
                                 await ws.send(auth_payload)
                                 await asyncio.sleep(0.5)
-                            except Exception as e:
-                                print(f"[!] Blaster auth payload failed: {e}")
+                            except (OSError, WebSocketException) as e:
+                                ctx.logger.warning("Blaster auth payload failed: %s", e)
 
                         while payload_idx < len(remaining_payloads):
                             p = remaining_payloads[payload_idx]
@@ -261,8 +270,8 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                                 if random.random() > 0.3:
                                     try:
                                         p = evolver._mutate(p)
-                                    except Exception:
-                                        pass
+                                    except (IndexError, TypeError, ValueError) as exc:
+                                        ctx.logger.debug("Payload evolution skipped malformed candidate: %s", exc)
 
                             final_packet = apply_template(p)
 
@@ -297,8 +306,10 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                                                     "response_snippet": resp_str[:200],
                                                 },
                                             )
-                                    except Exception as e:
-                                        ctx.logger.warning(f"DOM verify inline failed: {e}")
+                                    except DOM_PROTOCOL_ERRORS as e:
+                                        ctx.logger.warning("Inline DOM verification browser/protocol failure: %s", e)
+                                    except Exception:
+                                        ctx.logger.exception("Unexpected inline DOM verification failure")
 
                                 await ctx.sio.emit(
                                     "blaster_result",
@@ -323,11 +334,11 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                                         "dom_evidence": "",
                                     },
                                 )
-                            except Exception as e:
+                            except ConnectionClosed:
+                                payload_idx -= 1
+                                raise
+                            except (OSError, WebSocketException) as e:
                                 err_str = str(e)
-                                if "ConnectionClosed" in err_str or "1000" in err_str or "1001" in err_str:
-                                    payload_idx -= 1
-                                    raise
                                 await ctx.sio.emit(
                                     "blaster_result",
                                     {
@@ -339,7 +350,7 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                                 )
                 except asyncio.CancelledError:
                     raise
-                except Exception as e:
+                except (OSError, WebSocketException) as e:
                     err_str = str(e)
                     if auth_flow and reconnect_count < max_reconnects:
                         reconnect_count += 1
@@ -365,6 +376,9 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                             },
                         )
                         break
+                except Exception:
+                    ctx.logger.exception("Unexpected Blaster implementation failure")
+                    raise
         except asyncio.CancelledError:
             print("[*] Blaster cancelled by user.")
             await ctx.sio.emit(
@@ -373,11 +387,12 @@ def register_scan_routes(ctx: BridgeContext) -> None:
             )
         finally:
             await ctx.sio.emit("blaster_completed", {"status": "done"})
+            ctx.state.release_task("blaster_task", asyncio.current_task())
 
     @ctx.app.post("/scan/start")
     async def start_scan(config: Dict[str, Any]):
-        if ctx.state.scanner:
-            raise HTTPException(status_code=400, detail="A scan is already running")
+        if ctx.state.scanner or ctx.state.task_running("scan_task"):
+            raise HTTPException(status_code=409, detail="A scan is already running")
 
         target_url = config.get("url")
         if not target_url:
@@ -400,7 +415,7 @@ def register_scan_routes(ctx: BridgeContext) -> None:
             )
 
         task = asyncio.create_task(run_scan_task(scan_id))
-        ctx.state.active_scans["scan_task"] = task
+        ctx.state.register_task("scan_task", task)
 
         ctx.maybe_log_platform_event(
             config.get("project_id"),
@@ -441,8 +456,9 @@ def register_scan_routes(ctx: BridgeContext) -> None:
         except asyncio.TimeoutError:
             await ctx.sio.emit("message_sent", {"msg": payload, "response": "TIMEOUT"})
             return {"status": "timeout", "response": "No response received from target."}
-        except Exception as e:
-            return {"status": "error", "response": str(e)}
+        except (OSError, WebSocketException) as exc:
+            ctx.logger.warning("Request-forge target failed: %s", exc)
+            raise HTTPException(status_code=502, detail="Target WebSocket request failed") from exc
 
     @ctx.app.post("/blaster/start")
     async def blaster_start(data: Dict[str, Any]):
@@ -450,6 +466,8 @@ def register_scan_routes(ctx: BridgeContext) -> None:
         payloads = data.get("payloads", [])
         if not target_url or not payloads:
             raise HTTPException(status_code=400, detail="Target URL and payloads array required")
+        if ctx.state.task_running("blaster_task"):
+            raise HTTPException(status_code=409, detail="A blaster run is already active")
 
         task = asyncio.create_task(
             run_blaster_task(
@@ -462,7 +480,7 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                 data.get("auth_flow", None),
             )
         )
-        ctx.state.active_scans["blaster_task"] = task
+        ctx.state.register_task("blaster_task", task)
         return {"status": "started", "count": len(payloads)}
 
     @ctx.app.get("/blaster/payloads/{category}")
@@ -492,17 +510,17 @@ def register_scan_routes(ctx: BridgeContext) -> None:
 
     @ctx.app.post("/scan/stop")
     async def stop_scan():
-        if "scan_task" in ctx.state.active_scans and not ctx.state.active_scans["scan_task"].done():
+        if ctx.state.task_running("scan_task"):
             ctx.state.active_scans["scan_task"].cancel()
             return {"status": "success", "msg": "Scan cancelled"}
-        return {"status": "error", "msg": "No scan running"}
+        raise HTTPException(status_code=409, detail="No scan is running")
 
     @ctx.app.post("/blaster/stop")
     async def stop_blaster():
-        if "blaster_task" in ctx.state.active_scans and not ctx.state.active_scans["blaster_task"].done():
+        if ctx.state.task_running("blaster_task"):
             ctx.state.active_scans["blaster_task"].cancel()
             return {"status": "success", "msg": "Blaster cancelled"}
-        return {"status": "error", "msg": "No blaster running"}
+        raise HTTPException(status_code=409, detail="No blaster run is active")
 
     @ctx.app.post("/discovery/scan")
     async def discovery_scan(data: Dict[str, Any]):
@@ -516,10 +534,11 @@ def register_scan_routes(ctx: BridgeContext) -> None:
             discovery = WSEndpointDiscovery(target, timeout=10, max_depth=2)
             endpoints = await discovery.discover()
             return {"status": "success", "endpoints": endpoints, "count": len(endpoints)}
-        except ImportError:
-            return {"status": "error", "endpoints": [], "msg": "aiohttp not installed. Run: pip install aiohttp"}
-        except Exception as e:
-            return {"status": "error", "endpoints": [], "msg": str(e)}
+        except ImportError as exc:
+            raise HTTPException(status_code=503, detail="WebSocket discovery dependency is unavailable") from exc
+        except (OSError, ValueError, RuntimeError) as exc:
+            ctx.logger.warning("Discovery scan failed for %s: %s", target, exc)
+            raise HTTPException(status_code=502, detail="Target discovery failed") from exc
 
     @ctx.app.post("/discovery/probe")
     async def discovery_probe(data: Dict[str, Any]):
@@ -530,7 +549,7 @@ def register_scan_routes(ctx: BridgeContext) -> None:
         try:
             async with websockets.connect(url, ping_interval=None, close_timeout=5):
                 return {"alive": True, "status": "connected"}
-        except Exception as e:
+        except (OSError, asyncio.TimeoutError, WebSocketException) as e:
             return {"alive": False, "status": str(e)}
 
     @ctx.app.post("/auth/test")
@@ -584,13 +603,9 @@ def register_scan_routes(ctx: BridgeContext) -> None:
                 "extracted_tokens": extracted_tokens,
                 "steps_executed": len(results),
             }
-        except Exception as e:
-            return {
-                "status": "error",
-                "results": results,
-                "extracted_tokens": extracted_tokens,
-                "error": str(e),
-            }
+        except (OSError, ValueError, RuntimeError, WebSocketException) as exc:
+            ctx.logger.warning("Authentication workflow failed for %s: %s", url, exc)
+            raise HTTPException(status_code=502, detail="Authentication workflow failed") from exc
 
     @ctx.app.get("/oast/poll")
     async def oast_poll():
@@ -600,10 +615,11 @@ def register_scan_routes(ctx: BridgeContext) -> None:
             provider = OASTProvider()
             callbacks = await provider.poll_callbacks()
             return {"callbacks": callbacks or [], "count": len(callbacks or [])}
-        except ImportError:
-            return {"callbacks": [], "count": 0, "msg": "OAST provider not available"}
-        except Exception as e:
-            return {"callbacks": [], "count": 0, "msg": str(e)}
+        except ImportError as exc:
+            raise HTTPException(status_code=503, detail="OAST provider is unavailable") from exc
+        except (OSError, ValueError, RuntimeError) as exc:
+            ctx.logger.warning("OAST callback polling failed: %s", exc)
+            raise HTTPException(status_code=502, detail="OAST callback polling failed") from exc
 
     @ctx.app.post("/mutate")
     async def mutate_payload(data: Dict[str, Any]):
@@ -641,5 +657,6 @@ def register_scan_routes(ctx: BridgeContext) -> None:
             return {"status": "success", "mutations": mutations, "count": len(mutations), "engine": "SPE"}
         except ImportError:
             return {"status": "fallback", "mutations": [], "count": 0, "msg": "PayloadMutator not available. Using client-side mutations."}
-        except Exception as e:
-            return {"status": "error", "mutations": [], "count": 0, "msg": str(e)}
+        except (TypeError, ValueError, RuntimeError) as exc:
+            ctx.logger.warning("Payload mutation failed: %s", exc)
+            raise HTTPException(status_code=500, detail="Payload mutation failed") from exc

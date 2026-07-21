@@ -1,5 +1,32 @@
 All notable changes to WSHawk will be documented in this file.
 
+## [4.0.2] - 2026-07-17
+
+### Security
+- **Secret Storage** — Fixed Windows DPAPI initialization and made configured secure backends fail closed instead of silently falling back to plaintext.
+- **Local Services** — Defaulted the legacy dashboard to loopback, required authentication for remote binds, added CSRF/throttling/security headers, and blocked remote requests to private scan targets.
+- **Extension Pairing** — Added short-lived, desktop-approved first-time pairing and origin-bound extension sessions.
+- **Renderer Hardening** — Removed unsafe dynamic HTML rendering paths and added regression checks for desktop and extension JavaScript.
+- **Validation Artifact Redaction** — Redacted authentication and session material at the validation persistence boundary, including secret copies embedded in messages and URL query parameters.
+- **Dependency Auditing** — Added Python advisory auditing to the release-security gate alongside the existing production and complete npm audits.
+
+### Changed
+- **Compatibility Baseline** — Declared Python 3.10–3.13 and moved optional browser and analysis dependencies into extras.
+- **Release Gates** — Added cross-platform Python/desktop jobs, installed CLI and Electron smoke tests, dependency audits, Ruff, targeted mypy, wheel inspection, and release-security checks.
+- **Packaging** — Made `pyproject.toml` and `wshawk/_version_info.py` authoritative, excluded repository-only files from wheels, and consolidated container publishing.
+- **Research Publication** — Added the WSHawk preprint records from Zenodo and Figshare to the project README and generated release notes.
+- **GitHub Releases** — Platform installers now appear as clearly named Actions artifacts and are attached to tagged releases with SHA-256 manifests, installation guidance, categorized changes, and direct download links.
+
+### Fixed
+- **Desktop Sidecar Packaging** — Removed stale PyInstaller hidden imports and added a pre-build verifier that fails when declared runtime modules are unavailable.
+- **Container Build Context** — Excluded desktop dependencies and other repository-only inputs from Docker build contexts.
+- **CLI Reliability** — Unified all installed command versions and bounded defensive DNS/origin probing behavior for unavailable targets.
+
+## [4.0.1] - 2026-03-28
+
+### Fixed
+- **Release Automation** — Corrected the v4.0.1 release workflow and package publication path.
+
 ## [4.0.0] - 2026-03-25
 
 ### Added

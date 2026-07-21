@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
-from fastapi import HTTPException, Request, WebSocket
+from fastapi import HTTPException, Request, WebSocket, WebSocketDisconnect
+from websockets.exceptions import WebSocketException
 
 from wshawk.bridge_security import (
     EXTENSION_PAIRING,
@@ -69,6 +70,7 @@ def register_transport_routes(ctx: BridgeContext) -> None:
             session = EXTENSION_PAIRING.issue_token(
                 request.headers.get("origin"),
                 extension_id=data.get("extension_id") or extract_extension_id(request),
+                approval_code=data.get("approval_code"),
             )
             return {
                 "status": "success",
@@ -92,7 +94,7 @@ def register_transport_routes(ctx: BridgeContext) -> None:
         try:
             capture = ctx.get_browser_capture()
             if not capture.is_available:
-                return {"status": "error", "msg": "Playwright not installed"}
+                raise HTTPException(status_code=503, detail="Playwright browser runtime is unavailable")
 
             result = await capture.verify_response(
                 payload=data.get("payload", ""),
@@ -100,30 +102,36 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 timeout_ms=data.get("timeout_ms", 3000),
             )
             return {"status": "success", **result.to_dict()}
-        except Exception as e:
-            return {"status": "error", "msg": str(e)}
+        except (ValueError, TimeoutError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            ctx.logger.exception("DOM verification failed")
+            raise HTTPException(status_code=500, detail="DOM verification failed") from exc
 
     @ctx.app.post("/dom/verify/batch")
     async def dom_verify_batch(data: Dict[str, Any]):
         try:
             capture = ctx.get_browser_capture()
             if not capture.is_available:
-                return {"status": "error", "msg": "Playwright not installed"}
+                raise HTTPException(status_code=503, detail="Playwright browser runtime is unavailable")
 
             verified = await capture.batch_verify_responses(
                 data.get("results", []),
                 data.get("timeout_ms", 3000),
             )
             return {"status": "success", "results": verified}
-        except Exception as e:
-            return {"status": "error", "msg": str(e)}
+        except (ValueError, TimeoutError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            ctx.logger.exception("Batch DOM verification failed")
+            raise HTTPException(status_code=500, detail="Batch DOM verification failed") from exc
 
     @ctx.app.post("/dom/auth/record")
     async def dom_auth_record(data: Dict[str, Any]):
         try:
             capture = ctx.get_browser_capture()
             if not capture.is_available:
-                return {"status": "error", "msg": "Playwright not installed"}
+                raise HTTPException(status_code=503, detail="Playwright browser runtime is unavailable")
 
             flow = await capture.record_auth_flow(
                 login_url=data.get("login_url", ""),
@@ -154,15 +162,18 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 target=data.get("target_ws_url", "") or data.get("login_url", ""),
             )
             return {"status": "success", "flow": flow}
-        except Exception as e:
-            return {"status": "error", "msg": str(e)}
+        except (ValueError, TimeoutError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            ctx.logger.exception("DOM authentication recording failed")
+            raise HTTPException(status_code=500, detail="DOM authentication recording failed") from exc
 
     @ctx.app.post("/dom/auth/replay")
     async def dom_auth_replay(data: Dict[str, Any]):
         try:
             replay = ctx.get_browser_replay()
             if not replay.is_available:
-                return {"status": "error", "msg": "Playwright not installed"}
+                raise HTTPException(status_code=503, detail="Playwright browser runtime is unavailable")
 
             tokens = await replay.replay_auth_flow(data.get("flow"))
             identity = ctx.store_identity_from_tokens(
@@ -175,12 +186,7 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 storage=(data.get("flow") or {}).get("local_storage", {}),
             )
             if data.get("project_id") and not identity:
-                return {
-                    "status": "error",
-                    "msg": "Identity vault save failed",
-                    "project_id": data.get("project_id"),
-                    "identity_alias": data.get("identity_alias"),
-                }
+                raise HTTPException(status_code=500, detail="Identity vault save failed")
             if data.get("project_id"):
                 ctx.platform_store.add_browser_artifact(
                     project_id=data["project_id"],
@@ -215,8 +221,11 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 "session_token": tokens.session_token,
                 "identity": identity,
             }
-        except Exception as e:
-            return {"status": "error", "msg": str(e)}
+        except (ValueError, TimeoutError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            ctx.logger.exception("DOM authentication replay failed")
+            raise HTTPException(status_code=500, detail="DOM authentication replay failed") from exc
 
     @ctx.app.post("/interceptor/toggle")
     async def interceptor_toggle(data: Dict[str, Any]):
@@ -240,7 +249,7 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 fut.set_result({"action": action, "payload": payload})
             del ctx.state.interception_queue[i_id]
             return {"status": "success"}
-        return {"status": "not_found"}
+        raise HTTPException(status_code=404, detail="Intercepted message not found")
 
     @ctx.app.post("/api/extension/ingest/handshake")
     async def api_extension_handshake(data: Dict[str, Any]):
@@ -268,8 +277,11 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 )
             await ctx.sio.emit("new_handshake", sanitized)
             return {"status": "success", "received": True}
-        except Exception as e:
-            return {"status": "error", "msg": str(e)}
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            ctx.logger.exception("Extension handshake ingestion failed")
+            raise HTTPException(status_code=500, detail="Extension handshake ingestion failed") from exc
 
     @ctx.app.get("/api/interceptor/status")
     async def api_interceptor_status_legacy():
@@ -307,8 +319,8 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 shadow_url=websocket.query_params.get("shadow_url", ""),
                 delay_ms=int(websocket.query_params.get("delay_ms", "0")),
             )
-        except Exception as e:
-            print(f"[!] Proxy Error: {e}")
+        except (OSError, ValueError, WebSocketDisconnect, WebSocketException) as e:
+            ctx.logger.warning("WebSocket proxy protocol failure: %s", e)
             ctx.maybe_log_platform_event(
                 project_id,
                 "ws_proxy_error",
@@ -316,6 +328,18 @@ def register_transport_routes(ctx: BridgeContext) -> None:
                 target=url,
             )
             try:
-                await websocket.close()
-            except Exception:
-                pass
+                await websocket.close(code=1011)
+            except (RuntimeError, WebSocketDisconnect):
+                ctx.logger.debug("WebSocket client was already closed")
+        except Exception:
+            ctx.logger.exception("Unexpected WebSocket proxy implementation failure")
+            ctx.maybe_log_platform_event(
+                project_id,
+                "ws_proxy_error",
+                payload={"error": "Internal proxy error"},
+                target=url,
+            )
+            try:
+                await websocket.close(code=1011)
+            except (RuntimeError, WebSocketDisconnect):
+                ctx.logger.debug("WebSocket client was already closed")

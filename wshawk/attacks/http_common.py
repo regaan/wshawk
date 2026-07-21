@@ -288,6 +288,41 @@ def _normalize_http_behavior_body(body: str) -> str:
     return normalized[:4000]
 
 
+def is_http_error_response(result: Dict[str, Any]) -> bool:
+    """Detect application-level failures returned with a successful HTTP status."""
+    status = str(result.get("http_status") or result.get("status") or "")
+    if not status.isdigit() or int(status) >= 400:
+        return True
+
+    body = str(result.get("response") or result.get("body") or "").strip()
+    if not body:
+        return False
+    try:
+        parsed = json.loads(body)
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+
+    state = str(parsed.get("status", "")).strip().lower()
+    if state in {"error", "failed", "forbidden", "unauthorized", "denied", "rejected"}:
+        return True
+    if parsed.get("error") not in (None, "", False):
+        return True
+    if parsed.get("ok") is False or parsed.get("accepted") is False or parsed.get("success") is False:
+        return True
+    status_code = parsed.get("status_code")
+    try:
+        return status_code is not None and int(status_code) >= 400
+    except (TypeError, ValueError):
+        return False
+
+
+def http_result_effective_success(result: Dict[str, Any]) -> bool:
+    """Return true only for transport- and application-level HTTP success."""
+    return result.get("status") != "error" and not is_http_error_response(result)
+
+
 def summarize_http_authz_diff(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     behavior_groups: Dict[str, Dict[str, Any]] = {}
     status_breakdown: Dict[str, int] = {}

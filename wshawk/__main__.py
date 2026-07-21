@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
-"""
-Thin compatibility wrapper for the frozen legacy CLI/runtime.
+"""Executable module for the modern WSHawk command-line interface."""
 
-Legacy scanner classes and helpers now live in `wshawk.legacy_core` so the
-platform entrypoint can stay small and stable.
-"""
+from .cli import build_parser, cli as modern_cli, main as modern_main
 
-from .legacy_core import *  # noqa: F401,F403
-from .legacy_core import cli as legacy_cli
-from .legacy_core import main as legacy_main
+__all__ = ["build_parser", "main", "cli"]
 
 
-async def main():
-    return await legacy_main()
+async def main(argv=None):
+    return await modern_main(argv)
 
 
-def cli():
-    return legacy_cli()
+def cli(argv=None):
+    return modern_cli(argv)
 
 
 if __name__ == "__main__":
-    cli()
+    raise SystemExit(cli())

@@ -86,6 +86,9 @@ Run:
 ```
 
 This writes artifacts under `validation/artifacts/` and compares each lab result with the expected baseline in `validation/expected/`.
+Expected checks are evaluated against the raw in-memory scenario result. Before any JSON is written, the runner recursively
+redacts approval/authentication tokens, authorization and cookie values, API keys, session material, passwords, and secrets.
+Copies embedded in free text or sensitive URL query parameters are replaced with `[REDACTED]` as well.
 
 Expected generated artifacts:
 
@@ -93,6 +96,44 @@ Expected generated artifacts:
 - `validation/artifacts/<lab>/evaluation.json`
 - `validation/artifacts/<lab>/bundle.json`
 - `validation/artifacts/summary.json`
+
+Each bundle includes `redaction.applied: true` and the marker used for persisted secret values. A raw secret in any generated
+artifact is a release-gate failure even when all behavioral checks pass.
+
+### Attack engine benchmarks
+
+Run the web, raw WebSocket, and paired vulnerable/hardened attack implementations against deterministic localhost targets:
+
+```bash
+./venv/bin/python validation/run_validation.py web_attack_benchmark websocket_attack_benchmark industry_security_controls_benchmark
+```
+
+The web benchmark covers discovery, fuzzing, directory scanning, headers, CORS, fingerprinting, sensitive-data detection,
+redirects, SSRF with a false-positive control, prototype pollution, WAF detection, CSRF replay, a targeted port scan, and
+stateful HTTP replay/AuthZ/race services. The WebSocket benchmark covers welcome-frame handling, application error scoring,
+replay, AuthZ diffing, subscription mutation, concurrent race waves, and Origin-policy observation. The paired industry lab
+checks that WSHawk distinguishes deliberately vulnerable controls from hardened controls across HTTP and WebSocket paths.
+
+For repeatable warm-up, iteration, percentile, and regression-threshold measurements, run:
+
+```bash
+./venv/bin/python -m benchmarks.run --iterations 3 --warmup 1
+```
+
+See `benchmarks/README.md` for the method and `docs/ATTACK_IMPLEMENTATION_AUDIT.md` for the coverage and limitation matrix.
+
+### Desktop end-to-end security target
+
+Start the paired 26-case HTTP/WebSocket target before running desktop UI automation:
+
+```bash
+./venv/bin/python -m benchmarks.desktop_security_lab.server --ready-file build/desktop-security-lab.json
+```
+
+The ready file provides ephemeral loopback URLs for the vulnerable and hardened profiles. The lab ground truth is available at
+`/lab/ground-truth`, and `POST /lab/reset` resets state between benchmark iterations. See
+`benchmarks/desktop_security_lab/README.md` for fixtures and safety rules. This command starts the target only; it does not yet
+drive the Electron interface.
 
 ## Secondary Protocol Labs
 

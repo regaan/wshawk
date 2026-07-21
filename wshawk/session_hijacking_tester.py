@@ -21,6 +21,7 @@ from enum import Enum
 from datetime import datetime
 import hashlib
 import re
+from collections import deque
 
 
 class SessionVulnType(Enum):
@@ -79,6 +80,7 @@ class SessionHijackingTester:
         self.captured_tokens: Dict[str, str] = {}
         self.captured_sessions: List[Dict] = []
         self.user_sessions: Dict[str, Dict] = {}  # user_id -> session_data
+        self.recent_requests = deque(maxlen=128)
         
         # Default auth config
         self.auth_config = auth_config or {
@@ -112,6 +114,10 @@ class SessionHijackingTester:
             }
         
         return json.dumps(payload)
+
+    async def _send_message(self, websocket, message: str) -> None:
+        await websocket.send(message)
+        self.recent_requests.append(message)
     
     async def run_all_tests(self) -> List[SessionTestResult]:
         """Run all session security tests"""
@@ -152,7 +158,7 @@ class SessionHijackingTester:
             async with websockets.connect(self.target_url) as ws1:
                 # Send auth request
                 auth_msg = self._get_auth_payload()
-                await ws1.send(auth_msg)
+                await self._send_message(ws1, auth_msg)
                 
                 response = await asyncio.wait_for(ws1.recv(), timeout=3.0)
                 
@@ -172,12 +178,15 @@ class SessionHijackingTester:
                     async with websockets.connect(self.target_url) as ws2:
                         # Try to use captured token
                         reuse_msg = json.dumps({"action": "authenticate", "token": token})
-                        await ws2.send(reuse_msg)
+                        await self._send_message(ws2, reuse_msg)
                         
                         response2 = await asyncio.wait_for(ws2.recv(), timeout=3.0)
                         
                         # Check if token was accepted
-                        if self._is_auth_success(response2):
+                        if (
+                            not self._is_exact_echo(response2, tuple(self.recent_requests))
+                            and self._is_auth_success(response2)
+                        ):
                             self.results.append(SessionTestResult(
                                 vuln_type=SessionVulnType.TOKEN_REUSE,
                                 is_vulnerable=True,
@@ -219,13 +228,16 @@ class SessionHijackingTester:
                         "channel": channel
                     })
                     
-                    await ws.send(subscribe_msg)
+                    await self._send_message(ws, subscribe_msg)
                     
                     try:
                         response = await asyncio.wait_for(ws.recv(), timeout=2.0)
                         
                         # Check if subscription was accepted
-                        if self._is_subscription_success(response):
+                        if (
+                            not self._is_exact_echo(response, tuple(self.recent_requests))
+                            and self._is_subscription_success(response)
+                        ):
                             vulnerabilities.append({
                                 'channel': channel,
                                 'response': response[:200]
@@ -257,7 +269,7 @@ class SessionHijackingTester:
             async with websockets.connect(self.target_url) as ws1:
                 # User 1 authenticates
                 auth1 = self._get_auth_payload()
-                await ws1.send(auth1)
+                await self._send_message(ws1, auth1)
                 response1 = await asyncio.wait_for(ws1.recv(), timeout=3.0)
                 
                 user1_id = self._extract_user_id(response1)
@@ -273,13 +285,17 @@ class SessionHijackingTester:
                 successful_impersonations = []
                 
                 for attempt in impersonation_attempts:
-                    await ws1.send(json.dumps(attempt))
+                    serialized_attempt = json.dumps(attempt)
+                    await self._send_message(ws1, serialized_attempt)
                     
                     try:
                         response = await asyncio.wait_for(ws1.recv(), timeout=2.0)
                         
                         # Check if impersonation succeeded
-                        if not self._is_error_response(response):
+                        if (
+                            not self._is_exact_echo(response, tuple(self.recent_requests))
+                            and not self._is_error_response(response)
+                        ):
                             successful_impersonations.append({
                                 'attempt': attempt,
                                 'response': response[:200]
@@ -310,7 +326,7 @@ class SessionHijackingTester:
             async with websockets.connect(self.target_url) as ws:
                 # Auth as regular user
                 auth = self._get_auth_payload()
-                await ws.send(auth)
+                await self._send_message(ws, auth)
                 await asyncio.wait_for(ws.recv(), timeout=3.0)
                 
                 # Try to access other users' private channels
@@ -324,13 +340,17 @@ class SessionHijackingTester:
                 violations = []
                 
                 for attempt in violation_attempts:
-                    await ws.send(json.dumps(attempt))
+                    serialized_attempt = json.dumps(attempt)
+                    await self._send_message(ws, serialized_attempt)
                     
                     try:
                         response = await asyncio.wait_for(ws.recv(), timeout=2.0)
                         
                         # Check if we got data we shouldn't have
-                        if self._contains_private_data(response):
+                        if (
+                            not self._is_exact_echo(response, tuple(self.recent_requests))
+                            and self._contains_private_data(response)
+                        ):
                             violations.append({
                                 'attempt': attempt,
                                 'response': response[:200]
@@ -370,13 +390,17 @@ class SessionHijackingTester:
                 ]
                 
                 for attempt in fixation_attempts:
-                    await ws.send(json.dumps(attempt))
+                    serialized_attempt = json.dumps(attempt)
+                    await self._send_message(ws, serialized_attempt)
                     
                     try:
                         response = await asyncio.wait_for(ws.recv(), timeout=2.0)
                         
                         # Check if our session ID was accepted
-                        if fixed_session in response:
+                        if (
+                            not self._is_exact_echo(response, tuple(self.recent_requests))
+                            and fixed_session in response
+                        ):
                             self.results.append(SessionTestResult(
                                 vuln_type=SessionVulnType.SESSION_FIXATION,
                                 is_vulnerable=True,
@@ -405,7 +429,7 @@ class SessionHijackingTester:
             async with websockets.connect(self.target_url) as ws:
                 # Auth as regular user
                 auth = self._get_auth_payload()
-                await ws.send(auth)
+                await self._send_message(ws, auth)
                 response = await asyncio.wait_for(ws.recv(), timeout=3.0)
                 
                 # Extract session data
@@ -422,13 +446,17 @@ class SessionHijackingTester:
                 successful_escalations = []
                 
                 for attempt in escalation_attempts:
-                    await ws.send(json.dumps(attempt))
+                    serialized_attempt = json.dumps(attempt)
+                    await self._send_message(ws, serialized_attempt)
                     
                     try:
                         response = await asyncio.wait_for(ws.recv(), timeout=2.0)
                         
                         # Check if we gained elevated privileges
-                        if self._has_elevated_privileges(response):
+                        if (
+                            not self._is_exact_echo(response, tuple(self.recent_requests))
+                            and self._has_elevated_privileges(response)
+                        ):
                             successful_escalations.append({
                                 'attempt': attempt,
                                 'response': response[:200]
@@ -454,6 +482,13 @@ class SessionHijackingTester:
             print(f"  [ERROR] Privilege escalation test failed: {e}")
     
     # Helper methods
+
+    @staticmethod
+    def _is_exact_echo(response: object, request: object) -> bool:
+        """Treat an unchanged request reflection as no authorization evidence."""
+        if isinstance(request, (list, tuple, set, frozenset)):
+            return any(SessionHijackingTester._is_exact_echo(response, candidate) for candidate in request)
+        return response == request
     
     def _extract_token(self, response: str) -> Optional[str]:
         """Extract authentication token from response"""

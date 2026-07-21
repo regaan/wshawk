@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# WSHawk V4.0.0 — PyInstaller spec for the GUI Bridge sidecar binary
+# WSHawk V4.0.2 — PyInstaller spec for the GUI Bridge sidecar binary
 # Bundles the full backend: core scanner, platform daemon/store/transport/session/
 # protocol/attacks/evidence layers, web_pentest toolkit, payload mutator,
 # database manager, and all data files.
@@ -51,7 +51,6 @@ base_hiddenimports = [
         'wshawk.vulnerability_verifier',
         'wshawk.wss_security_validator',
         'wshawk.session_hijacking_tester',
-        'wshawk.ssrf_test',
         'wshawk.enhanced_reporter',
         'wshawk.report_exporter',
         'wshawk.plugin_system',
@@ -89,8 +88,6 @@ base_hiddenimports = [
         'engineio',
         'aiohttp',
         'websockets',
-        'websockets.legacy',
-        'websockets.legacy.client',
         'dns',
         'dns.resolver',
         'dns.reversename',
@@ -111,7 +108,6 @@ base_hiddenimports = [
         # ── Playwright (optional — graceful fallback if not installed) ────────
         'playwright',
         'playwright.async_api',
-        'playwright._impl._api_types',
         'playwright._impl._browser',
         'playwright._impl._browser_context',
         'playwright._impl._page',

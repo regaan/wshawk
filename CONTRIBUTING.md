@@ -24,13 +24,19 @@ Thank you for your interest in contributing to WSHawk! This document provides gu
 3. Create a virtual environment:
    ```bash
    python -m venv venv
+   # Linux/macOS
    source venv/bin/activate
+   # Windows PowerShell: venv\Scripts\Activate.ps1
    ```
 
 4. Install dependencies:
    ```bash
-   pip install -r requirements.txt
-   pip install -e .
+   python -m pip install -e ".[browser,dev]"
+   ```
+
+   Install Chromium only when working on browser-assisted verification:
+   ```bash
+   playwright install chromium
    ```
 
 5. Create a new branch:
@@ -51,13 +57,27 @@ Thank you for your interest in contributing to WSHawk! This document provides gu
 
 Before submitting a pull request:
 
-1. Test your changes:
+1. Run the Python, lint, and focused type checks:
    ```bash
-   python tests/test_modules_quick.py
+   python -m unittest discover -s tests
+   python -m ruff check .
+   python -m mypy
    ```
 
-2. Ensure all existing tests pass
-3. Add tests for new features
+2. If desktop or extension code changed, run the locked JavaScript checks and audits:
+   ```bash
+   cd desktop
+   npm ci
+   npm test
+   npm audit --omit=dev --audit-level=moderate
+   npm audit --audit-level=moderate
+   npm run smoke
+   ```
+
+3. Run `python -m pip_audit --progress-spinner off` after changing Python dependencies.
+4. Run `python scripts/release_security_checks.py` for packaging, renderer, bridge, authentication, or release changes.
+5. Run `python scripts/verify_pyinstaller_hiddenimports.py` when changing the desktop sidecar or its dependencies.
+6. Ensure all existing tests pass and add regression tests for changed behavior.
 
 ### Commit Messages
 
@@ -131,6 +151,8 @@ Use the GitHub issue tracker: https://github.com/regaan/wshawk/issues
 **Do not** report security vulnerabilities in public issues.
 
 Instead, email: security@rothackers.com
+
+Only test systems you own or are explicitly authorized to assess. Pull requests must not include live credentials, captured third-party data, or payload evidence from unauthorized targets.
 
 ## Code of Conduct
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WSHawk v4.0.0 - Advanced WebSocket Security Scanner
+WSHawk Advanced WebSocket Security Scanner
 Integrated with all analyzer modules + smart payload generation
 """
 
@@ -9,7 +9,8 @@ import asyncio
 import websockets
 import json
 import time
-from typing import List, Dict, Optional
+from collections import deque
+from typing import TYPE_CHECKING, List, Dict, Optional
 from datetime import datetime
 
 # Import analysis modules
@@ -19,11 +20,6 @@ from .server_fingerprint import ServerFingerprinter
 from .state_machine import SessionStateMachine, SessionState
 from .rate_limiter import TokenBucketRateLimiter
 from .enhanced_reporter import EnhancedHTMLReporter
-try:
-    from .headless_xss_verifier import HeadlessBrowserXSSVerifier
-except ImportError:
-    HeadlessBrowserXSSVerifier = None
-from .oast_provider import OASTProvider, SimpleOASTServer
 from .session_hijacking_tester import SessionHijackingTester
 from .report_exporter import ReportExporter
 from .binary_handler import BinaryMessageHandler
@@ -33,11 +29,17 @@ from .ai_engine import AIEngine
 from .smart_payloads.context_generator import ContextAwareGenerator
 from .smart_payloads.feedback_loop import FeedbackLoop, ResponseSignal
 from .smart_payloads.payload_evolver import PayloadEvolver
+from .tls import build_websocket_ssl_context
+from .scanner_attacks import ScannerAttackMixin
+from .scanner_errors import SCANNER_OPERATION_ERRORS
 
-# Import existing modules
-from .__main__ import WSPayloads, Logger, Colors
+# Shared services avoid importing the legacy CLI runtime.
+from .console import Colors, Logger
 
-class WSHawkV2:
+if TYPE_CHECKING:
+    from .config import WSHawkConfig
+
+class WSHawkV2(ScannerAttackMixin):
     """
     Enhanced WebSocket Security Scanner with Heuristic Analysis
     """
@@ -106,7 +108,7 @@ class WSHawkV2:
             else:
                 try:
                     self.state_machine.load_sequence_from_yaml(auth_sequence)
-                except Exception as e:
+                except SCANNER_OPERATION_ERRORS as e:
                     Logger.warning(f"YAML parsing failed, falling back to raw payload")
                     self.raw_auth_payload = auth_sequence
         
@@ -122,18 +124,47 @@ class WSHawkV2:
         
         # Traffic logs for reporting
         self.traffic_logs = []
+        self.recent_requests = deque(maxlen=1024)
+        self.scan_completed = False
+        self.last_error = None
+        self.verify_ssl = self.config.get('scanner.verify_ssl', True) is not False
     
     async def connect(self):
         """Establish WebSocket connection"""
+        last_error = None
+        ssl_context = build_websocket_ssl_context(self.url, verify_ssl=self.verify_ssl)
+        if ssl_context is not None and not self.verify_ssl:
+            Logger.warning("TLS certificate verification is disabled for this connection")
+        for attempt in range(1, 4):
+            try:
+                ws = await websockets.connect(
+                    self.url,
+                    additional_headers=self.headers,
+                    ssl=ssl_context,
+                )
+                self.state_machine._update_state('connected')
+                return ws
+            except SCANNER_OPERATION_ERRORS as exc:
+                last_error = exc
+                if attempt < 3:
+                    Logger.warning(f"Connection attempt {attempt}/3 failed: {exc}; retrying...")
+                    await asyncio.sleep(0.25 * attempt)
+
+        self.last_error = str(last_error)
+        Logger.error(f"Connection failed after 3 attempts: {last_error}")
+        if self.event_callback:
+            asyncio.create_task(self.event_callback('scan_error', {'error': str(last_error)}))
+        return None
+
+    async def _send_message(self, websocket, message) -> None:
+        """Send one scanner message through the shared rate limiter."""
+        await self.rate_limiter.acquire()
         try:
-            ws = await websockets.connect(self.url, additional_headers=self.headers)
-            self.state_machine._update_state('connected')
-            return ws
-        except Exception as e:
-            Logger.error(f"Connection failed: {e}")
-            if self.event_callback:
-                asyncio.create_task(self.event_callback('scan_error', {'error': str(e)}))
-            return None
+            await websocket.send(message)
+            self.recent_requests.append(message)
+            self.messages_sent += 1
+        finally:
+            await self.rate_limiter.done()
     
     async def learning_phase(self, ws, duration: int = 5):
         """
@@ -164,10 +195,10 @@ class WSHawkV2:
                 
                 except asyncio.TimeoutError:
                     continue
-                except Exception as e:
+                except SCANNER_OPERATION_ERRORS as e:
                     break
         
-        except Exception as e:
+        except SCANNER_OPERATION_ERRORS as e:
             Logger.error(f"Learning phase error: {e}")
         
         # Learn from collected samples
@@ -203,496 +234,18 @@ class WSHawkV2:
             Logger.warning("No messages received during learning phase")
             Logger.info("Will use basic payload injection")
     
-    async def test_sql_injection_v2(self, ws) -> List[Dict]:
-        """
-        Enhanced SQL injection testing with automated verification
-        """
-        Logger.info("Testing SQL injection with heuristic verification...")
-        
-        results = []
-        payloads = WSPayloads.get_sql_injection()[:100]
-        
-        # AI Integration
-        if self.use_ai:
-            context = "\n".join(self.sample_messages[:5])
-            ai_payloads = await self.ai_engine.generate_payloads(context, "SQL Injection")
-            if ai_payloads:
-                Logger.info(f"AI Engine generated {len(ai_payloads)} targeted SQLi payloads")
-                payloads = ai_payloads + payloads[:50]
-        
-        # Get server-specific payloads if fingerprinted
-        fingerprint = self.fingerprinter.fingerprint()
-        if fingerprint.database:
-            recommended = self.fingerprinter.get_recommended_payloads(fingerprint)
-            if recommended.get('sql'):
-                Logger.info(f"Using {fingerprint.database}-specific payloads")
-                payloads = recommended['sql'] + payloads[:50]
-        
-        # Get base message for injection
-        base_message = self.sample_messages[0] if self.sample_messages else '{"test": "value"}'
-        
-        for payload in payloads:
-            try:
-                # Automated injection into message structure
-                if self.learning_complete and self.message_analyzer.detected_format == MessageFormat.JSON:
-                    injected_messages = self.message_analyzer.inject_payload_into_message(
-                        base_message, payload
-                    )
-                else:
-                    injected_messages = [payload]
-                
-                for msg in injected_messages:
-                    await ws.send(msg)
-                    self.messages_sent += 1
-                    
-                    try:
-                        response = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                        self.messages_received += 1
-                        
-                        # Automated verification - not just reflection
-                        is_vuln, confidence, description = self.verifier.verify_sql_injection(
-                            response, payload
-                        )
-                        
-                        # Feed response to smart feedback loop
-                        if self.use_smart_payloads:
-                            resp_time = time.monotonic() - start_time if 'start_time' in dir() else 0.1
-                            signal, sig_conf = self.feedback_loop.analyze_response(
-                                payload, response, resp_time, category='sqli'
-                            )
-                        
-                        if is_vuln and confidence != ConfidenceLevel.LOW:
-                            Logger.vuln(f"SQL Injection [{confidence.value}]: {description}")
-                            Logger.vuln(f"Payload: {payload[:80]}")
-                            
-                            vuln_data = {
-                                'type': 'SQL Injection',
-                                'severity': confidence.value,
-                                'confidence': confidence.value,
-                                'description': description,
-                                'payload': payload,
-                                'response_snippet': response[:200],
-                                'recommendation': 'Use parameterized queries'
-                            }
-                            
-                            if self.event_callback:
-                                asyncio.create_task(self.event_callback('vulnerability_found', vuln_data))
-                            
-                            # Seed successful payload into evolver
-                            if self.use_smart_payloads:
-                                self.payload_evolver.seed([payload])
-                                self.payload_evolver.update_fitness(payload, 1.0)
-                            
-                            self.vulnerabilities.append(vuln_data)
-                            results.append({'payload': payload, 'confidence': confidence.value})
-                    
-                    except asyncio.TimeoutError:
-                        pass
-                    
-                    if self.event_callback:
-                        asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                    
-                    await asyncio.sleep(0.05)  # Rate limiting
-            
-            except Exception as e:
-                Logger.error(f"SQL test error: {e}")
-                continue
-        
-        return results
-    
-    async def test_xss_v2(self, ws) -> List[Dict]:
-        """
-        Enhanced XSS testing with context analysis
-        """
-        Logger.info("Testing XSS and reflective injection...")
-        
-        results = []
-        payloads = WSPayloads.get_xss()[:100]
-        
-        # AI Integration
-        if self.use_ai:
-            context = "\n".join(self.sample_messages[:5])
-            ai_payloads = await self.ai_engine.generate_payloads(context, "Cross-Site Scripting (XSS)")
-            if ai_payloads:
-                Logger.info(f"AI Engine generated {len(ai_payloads)} targeted XSS payloads")
-                payloads = ai_payloads + payloads[:50]
-        
-        base_message = self.sample_messages[0] if self.sample_messages else '{"input": "test"}'
-        
-        for payload in payloads:
-            try:
-                if self.learning_complete and self.message_analyzer.detected_format == MessageFormat.JSON:
-                    injected_messages = self.message_analyzer.inject_payload_into_message(
-                        base_message, payload
-                    )
-                else:
-                    injected_messages = [payload]
-                
-                for msg in injected_messages:
-                    await ws.send(msg)
-                    self.messages_sent += 1
-                    
-                    try:
-                        response = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                        self.messages_received += 1
-                        
-                        # Automated verification with context analysis
-                        is_vuln, confidence, description = self.verifier.verify_xss(
-                            response, payload
-                        )
-                        
-                        if is_vuln and confidence != ConfidenceLevel.LOW:
-                            # For HIGH confidence, verify with headless browser
-                            browser_verified = False
-                            if confidence == ConfidenceLevel.HIGH and self.use_headless_browser:
-                                try:
-                                    if not self.headless_verifier:
-                                        self.headless_verifier = HeadlessBrowserXSSVerifier()
-                                        await self.headless_verifier.start()
-                                    
-                                    is_executed, evidence = await self.headless_verifier.verify_xss_execution(
-                                        response, payload
-                                    )
-                                    
-                                    if is_executed:
-                                        browser_verified = True
-                                        confidence = ConfidenceLevel.HIGH
-                                        description = f"Sandboxed browser execution observed: {evidence}"
-                                except Exception as e:
-                                    Logger.error(f"Browser verification failed: {e}")
-                            
-                            Logger.vuln(f"XSS [{confidence.value}]: {description}")
-                            Logger.vuln(f"Payload: {payload[:80]}")
-                            if browser_verified:
-                                Logger.vuln("  [BROWSER EVIDENCE] Sandboxed browser execution was observed.")
-                            
-                            vuln_info = {
-                                'type': 'Cross-Site Scripting (XSS)',
-                                'severity': confidence.value,
-                                'confidence': confidence.value,
-                                'description': description,
-                                'payload': payload,
-                                'response_snippet': response[:200],
-                                'browser_verified': browser_verified,
-                                'recommendation': 'Sanitize and encode all user input'
-                            }
-                            
-                            if self.event_callback:
-                                asyncio.create_task(self.event_callback('vulnerability_found', vuln_info))
-                            
-                            # Seed into evolver
-                            if self.use_smart_payloads:
-                                self.payload_evolver.seed([payload])
-                                self.payload_evolver.update_fitness(payload, 1.0)
-                            
-                            self.vulnerabilities.append(vuln_info)
-                            results.append({'payload': payload, 'confidence': confidence.value})
-                    
-                    except asyncio.TimeoutError:
-                        pass
-                    
-                    if self.event_callback:
-                        asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                    
-                    await asyncio.sleep(0.05)
-            
-            except Exception as e:
-                continue
-        
-        return results
-    
-    async def test_command_injection_v2(self, ws) -> List[Dict]:
-        """
-        Enhanced command injection with timing attacks
-        """
-        Logger.info("Testing command injection with execution detection...")
-        
-        results = []
-        payloads = WSPayloads.get_command_injection()[:100]
-        
-        # AI Integration
-        if self.use_ai:
-            context = "\n".join(self.sample_messages[:5])
-            ai_payloads = await self.ai_engine.generate_payloads(context, "Command Injection")
-            if ai_payloads:
-                Logger.info(f"AI Engine generated {len(ai_payloads)} targeted Command Injection payloads")
-                payloads = ai_payloads + payloads[:50]
-        
-        # Get language-specific payloads
-        fingerprint = self.fingerprinter.fingerprint()
-        if fingerprint.language:
-            recommended = self.fingerprinter.get_recommended_payloads(fingerprint)
-            if recommended.get('command'):
-                Logger.info(f"Using {fingerprint.language}-specific command payloads")
-                payloads = recommended['command'] + payloads[:50]
-        
-        base_message = self.sample_messages[0] if self.sample_messages else '{"cmd": "test"}'
-        
-        for payload in payloads:
-            try:
-                if self.learning_complete and self.message_analyzer.detected_format == MessageFormat.JSON:
-                    injected_messages = self.message_analyzer.inject_payload_into_message(
-                        base_message, payload
-                    )
-                else:
-                    injected_messages = [payload]
-                
-                for msg in injected_messages:
-                    await ws.send(msg)
-                    self.messages_sent += 1
-                    
-                    try:
-                        response = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                        self.messages_received += 1
-                        
-                        # Automated verification
-                        is_vuln, confidence, description = self.verifier.verify_command_injection(
-                            response, payload
-                        )
-                        
-                        if is_vuln and confidence != ConfidenceLevel.LOW:
-                            Logger.vuln(f"Command Injection [{confidence.value}]: {description}")
-                            Logger.vuln(f"Payload: {payload[:80]}")
-                            
-                            vuln_info = {
-                                'type': 'Command Injection',
-                                'severity': confidence.value,
-                                'confidence': confidence.value,
-                                'description': description,
-                                'payload': payload,
-                                'response_snippet': response[:200],
-                                'recommendation': 'Never pass user input to system commands'
-                            }
-                            
-                            if self.event_callback:
-                                asyncio.create_task(self.event_callback('vulnerability_found', vuln_info))
-                            
-                            self.vulnerabilities.append(vuln_info)
-                            results.append({'payload': payload, 'confidence': confidence.value})
-                    
-                    except asyncio.TimeoutError:
-                        pass
-                    
-                    if self.event_callback:
-                        asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                    
-                    await asyncio.sleep(0.05)
-            
-            except Exception as e:
-                continue
-        
-        return results
-    
-    async def test_path_traversal_v2(self, ws) -> List[Dict]:
-        """Enhanced path traversal testing"""
-        Logger.info("Testing path traversal...")
-        
-        results = []
-        payloads = WSPayloads.get_path_traversal()[:50]
-        
-        for payload in payloads:
-            try:
-                msg = json.dumps({"action": "read_file", "filename": payload})
-                await ws.send(msg)
-                self.messages_sent += 1
-                
-                try:
-                    response = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                    self.messages_received += 1
-                    
-                    is_vuln, confidence, description = self.verifier.verify_path_traversal(response, payload)
-                    
-                    if is_vuln and confidence != ConfidenceLevel.LOW:
-                        Logger.vuln(f"Path Traversal [{confidence.value}]: {description}")
-                        self.vulnerabilities.append({
-                            'type': 'Path Traversal',
-                            'severity': confidence.value,
-                            'confidence': confidence.value,
-                            'description': description,
-                            'payload': payload,
-                            'response_snippet': response[:200],
-                            'recommendation': 'Validate and sanitize file paths'
-                        })
-                        results.append({'payload': payload, 'confidence': confidence.value})
-                
-                except asyncio.TimeoutError:
-                    pass
-                
-                if self.event_callback:
-                    asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                
-                await asyncio.sleep(0.05)
-            except Exception as e:
-                continue
-        
-        return results
-    
-    async def test_xxe_v2(self, ws) -> List[Dict]:
-        """Enhanced XXE testing with OAST"""
-        Logger.info("Testing XXE with OAST...")
-        
-        results = []
-        payloads = WSPayloads.get_xxe()[:30]
-        
-        # Start OAST if enabled
-        if self.use_oast and not self.oast_provider:
-            try:
-                self.oast_provider = OASTProvider(use_interactsh=False, custom_server="localhost:8888")
-                await self.oast_provider.start()
-                Logger.info("OAST provider started for blind XXE detection")
-            except Exception as e:
-                Logger.error(f"OAST start failed: {e}")
-                self.use_oast = False
-        
-        for payload in payloads:
-            try:
-                # Generate OAST payload if available
-                if self.use_oast and self.oast_provider:
-                    oast_payload = self.oast_provider.generate_payload('xxe', f'test{len(results)}')
-                    msg = json.dumps({"action": "parse_xml", "xml": oast_payload})
-                else:
-                    msg = json.dumps({"action": "parse_xml", "xml": payload})
-                
-                await ws.send(msg)
-                self.messages_sent += 1
-                
-                try:
-                    response = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                    self.messages_received += 1
-                    
-                    xxe_indicators = ['<!entity', 'system', 'file://', 'root:', 'XML Parse Error']
-                    if any(ind.lower() in response.lower() for ind in xxe_indicators):
-                        Logger.vuln(f"XXE [HIGH]: Entity processing detected")
-                        vuln_info = {
-                            'type': 'XML External Entity (XXE)',
-                            'severity': 'HIGH',
-                            'confidence': 'HIGH',
-                            'description': 'XXE vulnerability - external entities processed',
-                            'payload': payload[:80],
-                            'response_snippet': response[:200],
-                            'recommendation': 'Disable external entity processing'
-                        }
-                        if self.event_callback:
-                            asyncio.create_task(self.event_callback('vulnerability_found', vuln_info))
-                        self.vulnerabilities.append(vuln_info)
-                        results.append({'payload': payload, 'confidence': 'HIGH'})
-                
-                except asyncio.TimeoutError:
-                    pass
-                
-                if self.event_callback:
-                    asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                
-                await asyncio.sleep(0.05)
-            except Exception as e:
-                continue
-        
-        return results
-    
-    async def test_nosql_injection_v2(self, ws) -> List[Dict]:
-        """Enhanced NoSQL injection testing"""
-        Logger.info("Testing NoSQL injection...")
-        
-        results = []
-        payloads = WSPayloads.get_nosql_injection()[:50]
-        
-        for payload in payloads:
-            try:
-                msg = json.dumps({"action": "find_user", "query": {"username": payload}})
-                await ws.send(msg)
-                self.messages_sent += 1
-                
-                try:
-                    response = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                    self.messages_received += 1
-                    
-                    nosql_indicators = ['mongodb', 'bson', 'query error', '$ne', '$gt', 'Query Error']
-                    if any(ind.lower() in response.lower() for ind in nosql_indicators):
-                        Logger.vuln(f"NoSQL Injection [HIGH]: Query manipulation detected")
-                        vuln_info = {
-                            'type': 'NoSQL Injection',
-                            'severity': 'HIGH',
-                            'confidence': 'HIGH',
-                            'description': 'NoSQL injection vulnerability detected',
-                            'payload': payload,
-                            'response_snippet': response[:200],
-                            'recommendation': 'Use parameterized queries'
-                        }
-                        if self.event_callback:
-                            asyncio.create_task(self.event_callback('vulnerability_found', vuln_info))
-                        self.vulnerabilities.append(vuln_info)
-                        results.append({'payload': payload, 'confidence': 'HIGH'})
-                
-                except asyncio.TimeoutError:
-                    pass
-                
-                if self.event_callback:
-                    asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                
-                await asyncio.sleep(0.05)
-            except Exception as e:
-                continue
-        
-        return results
-    
-    async def test_ssrf_v2(self, ws) -> List[Dict]:
-        """Enhanced SSRF testing"""
-        Logger.info("Testing SSRF...")
-        
-        results = []
-        internal_targets = [
-            'http://localhost',
-            'http://127.0.0.1',
-            'http://169.254.169.254/latest/meta-data/',
-            'http://metadata.google.internal',
-        ]
-        
-        for target in internal_targets:
-            try:
-                await self.rate_limiter.acquire()
-                
-                msg = json.dumps({"action": "fetch_url", "url": target})
-                await ws.send(msg)
-                self.messages_sent += 1
-                
-                try:
-                    response = await asyncio.wait_for(ws.recv(), timeout=3.0)
-                    self.messages_received += 1
-                    
-                    ssrf_indicators = ['connection refused', 'timeout', 'metadata', 'instance-id', 'localhost']
-                    if any(ind.lower() in response.lower() for ind in ssrf_indicators):
-                        Logger.vuln(f"SSRF [HIGH]: Internal endpoint accessible - {target}")
-                        vuln_info = {
-                            'type': 'Server-Side Request Forgery (SSRF)',
-                            'severity': 'HIGH',
-                            'confidence': 'HIGH',
-                            'description': f'SSRF vulnerability - accessed {target}',
-                            'payload': target,
-                            'response_snippet': response[:200],
-                            'recommendation': 'Validate and whitelist allowed URLs'
-                        }
-                        if self.event_callback:
-                            asyncio.create_task(self.event_callback('vulnerability_found', vuln_info))
-                        self.vulnerabilities.append(vuln_info)
-                        results.append({'payload': target, 'confidence': 'HIGH'})
-                
-                except asyncio.TimeoutError:
-                    pass
-                
-                if self.event_callback:
-                    asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
-                    
-                await asyncio.sleep(0.1)
-            except Exception as e:
-                continue
-        
-        return results
-    
     async def run_heuristic_scan(self):
         """
         Run full heuristic scan with all modules
         """
         self.start_time = datetime.now()
+        self.vulnerabilities.clear()
+        self.traffic_logs.clear()
+        self.recent_requests.clear()
+        self.messages_sent = 0
+        self.messages_received = 0
+        self.scan_completed = False
+        self.last_error = None
         Logger.banner()
         Logger.info(f"Target: {self.url}")
         Logger.info("Starting automated scan with rate limiting...")
@@ -709,10 +262,10 @@ class WSHawkV2:
         if self.raw_auth_payload:
             Logger.info(f"Firing Skeleton Key (Auth Payload)")
             try:
-                await ws.send(self.raw_auth_payload)
+                await self._send_message(ws, self.raw_auth_payload)
                 resp = await asyncio.wait_for(ws.recv(), timeout=2.0)
                 Logger.success(f"Auth Response received: {resp[:50]}")
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"Failed to execute Skeleton Key: {e}")
                 
         print()
@@ -778,8 +331,7 @@ class WSHawkV2:
                             injected = [payload]
                         
                         for msg in injected:
-                            await ws.send(msg)
-                            self.messages_sent += 1
+                            await self._send_message(ws, msg)
                             
                             try:
                                 t0 = time.monotonic()
@@ -798,7 +350,11 @@ class WSHawkV2:
                                     (self.verifier.verify_xss, 'Cross-Site Scripting (XSS)'),
                                     (self.verifier.verify_command_injection, 'Command Injection'),
                                 ]:
-                                    is_vuln, confidence, desc = check_fn(response, payload)
+                                    is_vuln, confidence, desc = check_fn(
+                                        response,
+                                        payload,
+                                        tuple(self.recent_requests),
+                                    )
                                     if is_vuln and confidence != ConfidenceLevel.LOW:
                                         Logger.vuln(f"[EVOLVED] {vuln_type} [{confidence.value}]: {desc}")
                                         self.payload_evolver.update_fitness(payload, 1.0)
@@ -820,7 +376,8 @@ class WSHawkV2:
                                 asyncio.create_task(self.event_callback('message_sent', {'msg': msg, 'response': response if 'response' in locals() else None}))
                                 
                             await asyncio.sleep(0.05)
-                    except Exception:
+                    except SCANNER_OPERATION_ERRORS as exc:
+                        Logger.warning(f"Smart-payload mutation failed: {exc}")
                         continue
                 
                 Logger.success(f"Evolution phase complete (gen {self.payload_evolver.generation})")
@@ -852,7 +409,7 @@ class WSHawkV2:
                     })
             
             Logger.success(f"Session tests complete: {len(session_results)} tests run")
-        except Exception as e:
+        except SCANNER_OPERATION_ERRORS as e:
             Logger.error(f"Session hijacking tests failed: {e}")
         
         # Cleanup verification resources
@@ -860,14 +417,14 @@ class WSHawkV2:
             try:
                 await self.headless_verifier.stop()
                 Logger.info("Headless browser stopped")
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"Browser cleanup error: {e}")
         
         if self.oast_provider:
             try:
                 await self.oast_provider.stop()
                 Logger.info("OAST provider stopped")
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"OAST cleanup error: {e}")
         
         # Summary
@@ -925,7 +482,7 @@ class WSHawkV2:
                     fingerprint_info=fingerprint_info
                 )
                 Logger.success(f"{fmt.upper()} report saved: {out_file}")
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"Failed to export {fmt}: {e}")
         
         # ─── Automated Integrations ─────────────────────────────────
@@ -940,7 +497,7 @@ class WSHawkV2:
                     product_id=self.config.get('integrations.defectdojo.product_id')
                 )
                 await dojo.push_findings(self.vulnerabilities, scan_info)
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"DefectDojo integration failed: {e}")
                 
         # 2. Jira
@@ -954,7 +511,7 @@ class WSHawkV2:
                     project_key=self.config.get('integrations.jira.project')
                 )
                 await jira.create_tickets(self.vulnerabilities, scan_info)
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"Jira integration failed: {e}")
                 
         # 3. Webhooks
@@ -966,11 +523,12 @@ class WSHawkV2:
                     platform=self.config.get('integrations.webhook.platform')
                 )
                 await webhook.notify(self.vulnerabilities, scan_info)
-            except Exception as e:
+            except SCANNER_OPERATION_ERRORS as e:
                 Logger.error(f"Webhook notification failed: {e}")
 
         # Show rate limiter stats
         rate_stats = self.rate_limiter.get_stats()
         Logger.info(f"Rate limiter: {rate_stats['total_requests']} requests, {rate_stats['total_waits']} waits")
         
+        self.scan_completed = True
         return self.vulnerabilities

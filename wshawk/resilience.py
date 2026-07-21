@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 WSHawk HTTP Resilience Layer
 Retry with exponential backoff, circuit breaker, and rate-limit handling
@@ -11,7 +13,10 @@ import time
 import logging
 from enum import Enum
 from functools import wraps
-from typing import Optional, Set
+from typing import TYPE_CHECKING, Optional, Set
+
+if TYPE_CHECKING:
+    import aiohttp
 
 logger = logging.getLogger('wshawk.resilience')
 
@@ -277,7 +282,7 @@ class ResilientSession:
         if self._session:
             await self._session.close()
     
-    async def request(self, method: str, url: str, **kwargs) -> 'aiohttp.ClientResponse':
+    async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
         """Make a resilient HTTP request."""
         if self.circuit_breaker and not self.circuit_breaker.can_execute():
             raise ConnectionError(

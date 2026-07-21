@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
+import sqlite3
 from typing import Any, Dict, List, Optional
 
 import socketio
 from fastapi import FastAPI, HTTPException
+from wshawk._version_info import __version__
 
 from wshawk.attacks import (
     HTTPAuthzDiffService,
@@ -23,6 +25,9 @@ from wshawk.store import ProjectStore
 from wshawk.transport import WSHawkHTTPProxy, WSHawkWebSocketProxy
 
 from .state import GlobalState
+
+
+PERSISTENCE_ERRORS = (OSError, TypeError, ValueError, sqlite3.Error)
 
 
 @dataclass
@@ -50,7 +55,7 @@ class BridgeContext:
     evidence_bundle_builder: EvidenceBundleBuilder
     evidence_exporter: EvidenceExportService
     logger: Any = field(default_factory=lambda: get_logger("gui_bridge"))
-    bridge_version: str = "4.0.0"
+    bridge_version: str = __version__
     team: Any = None
     _browser_capture_service: Optional[BrowserCaptureService] = None
     _browser_replay_service: Optional[BrowserReplayService] = None
@@ -77,7 +82,11 @@ class BridgeContext:
                 connection_id=connection_id,
                 target=target,
             )
+        except PERSISTENCE_ERRORS as exc:
+            self.logger.warning("Platform event persistence failed: %s", exc)
+            return None
         except Exception:
+            self.logger.exception("Unexpected platform event persistence failure")
             return None
 
     def maybe_store_platform_evidence(
@@ -102,7 +111,11 @@ class BridgeContext:
                 severity=severity,
                 related_event_id=related_event_id,
             )
+        except PERSISTENCE_ERRORS as exc:
+            self.logger.warning("Platform evidence persistence failed: %s", exc)
+            return None
         except Exception:
+            self.logger.exception("Unexpected platform evidence persistence failure")
             return None
 
     def store_identity_from_tokens(
@@ -129,7 +142,11 @@ class BridgeContext:
                 storage=storage or {},
                 session_token=session_token,
             )
+        except PERSISTENCE_ERRORS as exc:
+            self.logger.warning("Identity vault persistence failed: %s", exc)
+            return None
         except Exception:
+            self.logger.exception("Unexpected identity vault persistence failure")
             return None
 
     def require_platform_project(self, project_id: str) -> Dict[str, Any]:

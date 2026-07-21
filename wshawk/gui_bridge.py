@@ -9,18 +9,21 @@ registers route/socket modules, and starts the daemon.
 
 import os
 import sys
+import logging
 from pathlib import Path
 
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
+    except (AttributeError, OSError, ValueError):
+        # Older/redirected streams may not support runtime reconfiguration.
         pass
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import socketio
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -59,6 +62,7 @@ from wshawk.bridge_security import (
     request_origin_is_trusted,
 )
 from wshawk.daemon import BridgeContext, GlobalState, run_daemon
+from wshawk.daemon.errors import error_response
 from wshawk.daemon.platform_routes import register_platform_routes
 from wshawk.daemon.scan_routes import register_scan_routes
 from wshawk.daemon.socketio_events import register_socketio_events
@@ -72,6 +76,11 @@ from wshawk.protocol import ProtocolGraphService, ProtocolInferenceService, Prot
 from wshawk.session import IdentityVaultService
 from wshawk.store import ProjectStore
 from wshawk.transport import WSHawkHTTPProxy, WSHawkWebSocketProxy
+
+
+# Module reloads (including desktop sidecar restarts and tests) must not retain
+# process-local extension tokens or a SecretStore bound to an obsolete data dir.
+EXTENSION_PAIRING.reconfigure()
 
 db = WSHawkDatabase()
 platform_store = ProjectStore(db)
@@ -94,6 +103,47 @@ evidence_bundle_builder = EvidenceBundleBuilder(db=db, store=platform_store)
 evidence_exporter = EvidenceExportService(evidence_bundle_builder, protocol_graph=protocol_graph)
 
 app = FastAPI(title="WSHawk GUI Bridge")
+bridge_logger = logging.getLogger(__name__)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def handle_http_exception(request: Request, exc: StarletteHTTPException):
+    if exc.status_code >= 500:
+        bridge_logger.error(
+            "Daemon route failed: %s %s: %s",
+            request.method,
+            request.url.path,
+            exc.detail,
+        )
+    return error_response(exc.status_code, exc.detail)
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(request: Request, exc: RequestValidationError):
+    bridge_logger.info(
+        "Daemon request validation failed: %s %s: %s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+    )
+    return error_response(
+        422,
+        "Request validation failed",
+        code="request_validation_error",
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_exception(request: Request, exc: Exception):
+    bridge_logger.exception(
+        "Unhandled daemon error: %s %s",
+        request.method,
+        request.url.path,
+        exc_info=exc,
+    )
+    return error_response(500, "Internal server error", code="internal_error")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["null"],
@@ -141,17 +191,11 @@ ctx = BridgeContext(
 @app.middleware("http")
 async def enforce_bridge_auth(request: Request, call_next):
     if not request_is_local(request):
-        return JSONResponse(
-            status_code=403,
-            content={"status": "error", "detail": "Bridge only accepts local clients"},
-        )
+        return error_response(403, "Bridge only accepts local clients", code="local_clients_only")
 
     if is_extension_path(request.url.path):
         if not request_origin_is_extension(request):
-            return JSONResponse(
-                status_code=403,
-                content={"status": "error", "detail": "Bridge rejected an untrusted extension origin"},
-            )
+            return error_response(403, "Bridge rejected an untrusted extension origin", code="untrusted_origin")
 
         if request.method == "OPTIONS":
             response = await call_next(request)
@@ -166,27 +210,19 @@ async def enforce_bridge_auth(request: Request, call_next):
         if is_extension_protected_path(request.url.path) and request_has_valid_extension_token(request):
             return await call_next(request)
 
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "detail": "Extension pairing token required"},
-            headers={EXTENSION_ID_HEADER: EXTENSION_PAIRING.get_trusted_extension_id() or ""},
-        )
+        response = error_response(401, "Extension pairing token required", code="extension_pairing_required")
+        response.headers[EXTENSION_ID_HEADER] = EXTENSION_PAIRING.get_trusted_extension_id() or ""
+        return response
 
     if not request_origin_is_trusted(request):
-        return JSONResponse(
-            status_code=403,
-            content={"status": "error", "detail": "Bridge rejected an untrusted browser origin"},
-        )
+        return error_response(403, "Bridge rejected an untrusted browser origin", code="untrusted_origin")
 
     if request.method == "OPTIONS":
         return await call_next(request)
 
     candidate = request.headers.get(TOKEN_HEADER) or request.query_params.get("token")
     if not is_valid_bridge_token(candidate):
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "detail": "Bridge authentication required"},
-        )
+        return error_response(401, "Bridge authentication required", code="authentication_required")
 
     return await call_next(request)
 

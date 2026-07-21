@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "defaults": {
+    "max_failed_checks": 0,
+    "min_check_pass_rate": 1.0,
+    "min_runs": 1
+  },
+  "labs": {
+    "web_attack_benchmark": {
+      "min_checks": 17,
+      "max_p95_wall_ms": 10000
+    },
+    "websocket_attack_benchmark": {
+      "min_checks": 7,
+      "max_p95_wall_ms": 10000
+    },
+    "industry_security_controls_benchmark": {
+      "min_checks": 11,
+      "max_p95_wall_ms": 15000
+    }
+  }
+}

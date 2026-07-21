@@ -12,7 +12,7 @@ REPO_ROOT = ROOT.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from validation.common import evaluate_expected, load_expected, write_json
+from validation.common import REDACTION_MARKER, evaluate_expected, load_expected, redact_artifact_data, write_json
 
 EXPECTED_DIR = ROOT / "expected"
 DEFAULT_ARTIFACT_DIR = ROOT / "artifacts"
@@ -21,6 +21,9 @@ LAB_MODULES = {
     "full_stack_realtime_saas": "validation.full_stack_realtime_saas.scenario",
     "socketio_saas": "validation.socketio_saas.scenario",
     "graphql_subscriptions_lab": "validation.graphql_subscriptions_lab.scenario",
+    "web_attack_benchmark": "validation.web_attack_benchmark.scenario",
+    "websocket_attack_benchmark": "validation.websocket_attack_benchmark.scenario",
+    "industry_security_controls_benchmark": "benchmarks.industry_lab.scenario",
 }
 
 
@@ -48,16 +51,18 @@ def run_lab(lab_name: str, artifact_root: str | Path = DEFAULT_ARTIFACT_DIR) -> 
     result = runner()
     expected = load_expected(expected_path_for(lab_name))
     evaluation = evaluate_expected(result, expected)
+    persisted_result = redact_artifact_data(result)
 
     lab_dir = Path(artifact_root) / lab_name
-    write_json(lab_dir / "result.json", result)
+    write_json(lab_dir / "result.json", persisted_result)
     write_json(lab_dir / "evaluation.json", evaluation)
 
     bundle = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "lab": lab_name,
         "expected_path": str(expected_path_for(lab_name)),
-        "result": result,
+        "redaction": {"applied": True, "marker": REDACTION_MARKER},
+        "result": persisted_result,
         "evaluation": evaluation,
     }
     write_json(lab_dir / "bundle.json", bundle)

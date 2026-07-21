@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from wshawk.store import ProjectStore
 from wshawk.transport import WSHawkHTTPProxy
 
-from .http_common import render_http_template
+from .http_common import http_result_effective_success, render_http_template
 from .http_replay import HTTPReplayService, replay_http_request
 
 
@@ -189,18 +189,12 @@ class HTTPRaceService:
             ).hexdigest()[:16]
             for item in results
         }
-        success_count = sum(
-            1
-            for item in results
-            if str(item.get("http_status", "")).isdigit() and int(str(item.get("http_status"))) < 400
-        )
+        success_count = sum(1 for item in results if http_result_effective_success(item))
         error_count = sum(1 for item in results if item.get("status") == "error")
         wave_success = {}
         for item in results:
             key = f"wave_{item['wave']}"
-            wave_success[key] = wave_success.get(key, 0) + (
-                1 if str(item.get("http_status", "")).isdigit() and int(str(item.get("http_status"))) < 400 else 0
-            )
+            wave_success[key] = wave_success.get(key, 0) + (1 if http_result_effective_success(item) else 0)
 
         multi_success = success_count > 1
         later_wave_success = any(count > 0 for key, count in wave_success.items() if key != "wave_1")

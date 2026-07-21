@@ -9,20 +9,11 @@ Author: Regaan (@regaan)
 import re
 import json
 import time
-from typing import List, Dict, Optional, Any, Tuple
-from collections import defaultdict
+from typing import Deque, List, Dict, Optional, Any, Tuple
+from collections import defaultdict, deque
 from datetime import datetime
 
-try:
-    from ..__main__ import Logger
-except ImportError:
-    class Logger:
-        @staticmethod
-        def info(msg): print(f"[*] {msg}")
-        @staticmethod
-        def success(msg): print(f"[+] {msg}")
-        @staticmethod
-        def warning(msg): print(f"[!] {msg}")
+from ..console import Logger
 
 
 class ResponseSignal:
@@ -50,19 +41,25 @@ class FeedbackLoop:
     This gives WSHawk "intelligence" — it focuses effort on what works.
     """
     
-    def __init__(self, response_threshold: float = 0.5):
+    def __init__(
+        self,
+        response_threshold: float = 0.5,
+        max_history: int = 500,
+        max_interesting: int = 500,
+    ):
         """
         Args:
             response_threshold: Time ratio threshold for delay detection (1.5x baseline = delayed)
         """
         # Baseline tracking
-        self.baseline_responses: List[str] = []
+        self.baseline_responses: Deque[str] = deque(maxlen=3)
         self.baseline_length: float = 0
         self.baseline_time: float = 0
         self.baseline_established = False
         
         # Response tracking
-        self.response_history: List[Dict] = []
+        self.max_history = max(1, int(max_history))
+        self.response_history: Deque[Dict] = deque(maxlen=self.max_history)
         self.signal_counts: Dict[str, int] = defaultdict(int)
         
         # Effectiveness tracking by category
@@ -71,11 +68,11 @@ class FeedbackLoop:
         self.category_hits: Dict[str, int] = defaultdict(int)
         
         # Interesting findings queue
-        self.interesting_payloads: List[Dict] = []
+        self.max_interesting = max(1, int(max_interesting))
+        self.interesting_payloads: Deque[Dict] = deque(maxlen=self.max_interesting)
         
         # Settings
         self.response_threshold = response_threshold
-        self.max_history = 500
         
         # Error patterns that indicate injection worked
         self.error_patterns = [
@@ -224,9 +221,6 @@ class FeedbackLoop:
             'category': category,
             'time': response_time,
         })
-        if len(self.response_history) > self.max_history:
-            self.response_history = self.response_history[-self.max_history:]
-        
         # Update category effectiveness
         self._update_category_score(category, is_interesting)
         

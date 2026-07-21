@@ -1,6 +1,6 @@
 {
   "name": "wshawk",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "WSHawk - Advanced WebSocket Security Scanner",
   "homepage": "https://github.com/regaan/wshawk",
   "repository": {
@@ -12,7 +12,7 @@
     "start": "electron .",
     "smoke": "node scripts/smoke-check.js",
     "dist": "electron-builder",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node scripts/syntax-check.js",
     "security:release-checks": "python ../scripts/release_security_checks.py"
   },
   "keywords": [
@@ -26,7 +26,7 @@
   "license": "AGPL-3.0",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^40.6.0",
+    "electron": "^43.1.1",
     "electron-builder": "^26.8.1"
   },
   "dependencies": {
@@ -40,6 +40,10 @@
     "appId": "com.rothackers.wshawk",
     "productName": "WSHawk",
     "icon": "build/icon.png",
+    "files": [
+      "**/*",
+      "!scripts/**"
+    ],
     "linux": {
       "target": [
         "pacman",

@@ -17,7 +17,7 @@
         <div class="nav-brand">
             <span class="logo">🦅</span>
             <span class="brand-text">WSHawk</span>
-            <span class="version">V4.0.0</span>
+            <span class="version">V{{ wshawk_version }}</span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link">Dashboard</a>
@@ -36,6 +36,7 @@
                 {% endif %}
 
                 <form method="POST" action="/scan" id="scan-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <div class="form-group">
                         <label for="target">Target WebSocket URL</label>
                         <input type="text" id="target" name="target" placeholder="ws://example.com/websocket"
@@ -97,7 +98,7 @@
     </main>
 
     <footer class="footer">
-        <p>WSHawk V4.0.0 by <a href="https://github.com/regaan">Regaan</a></p>
+        <p>WSHawk V{{ wshawk_version }} by <a href="https://github.com/regaan">Regaan</a></p>
     </footer>
 
     <script>

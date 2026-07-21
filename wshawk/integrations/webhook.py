@@ -10,24 +10,14 @@ import json
 import os
 from datetime import datetime
 from typing import List, Dict, Optional, Any
+from .._version_info import __version__
 
 try:
     import aiohttp
 except ImportError:
     aiohttp = None
 
-try:
-    from ..__main__ import Logger
-except ImportError:
-    class Logger:
-        @staticmethod
-        def info(msg): print(f"[*] {msg}")
-        @staticmethod
-        def success(msg): print(f"[+] {msg}")
-        @staticmethod
-        def error(msg): print(f"[-] {msg}")
-        @staticmethod
-        def warning(msg): print(f"[!] {msg}")
+from ..console import Logger
 
 
 class WebhookNotifier:
@@ -212,7 +202,7 @@ class WebhookNotifier:
         blocks.append({
             "type": "context",
             "elements": [
-                {"type": "mrkdwn", "text": f"_WSHawk V4.0.0 by Regaan | {datetime.now().strftime('%Y-%m-%d %H:%M')}_ "}
+                {"type": "mrkdwn", "text": f"_WSHawk V{__version__} by Regaan | {datetime.now().strftime('%Y-%m-%d %H:%M')}_ "}
             ]
         })
         
@@ -274,7 +264,7 @@ class WebhookNotifier:
             "color": color_map.get(highest, 0x808080),
             "fields": fields,
             "footer": {
-                "text": f"WSHawk V4.0.0 by Regaan • {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                "text": f"WSHawk V{__version__} by Regaan • {datetime.now().strftime('%Y-%m-%d %H:%M')}"
             },
             "thumbnail": {
                 "url": "https://github.com/regaan.png"
@@ -355,7 +345,7 @@ class WebhookNotifier:
         """Build generic JSON webhook payload."""
         return {
             'event': 'scan_complete',
-            'scanner': 'WSHawk V4.0.0',
+            'scanner': f'WSHawk V{__version__}',
             'timestamp': datetime.now().isoformat(),
             'scan_info': {
                 'target': scan_info.get('target', 'Unknown'),

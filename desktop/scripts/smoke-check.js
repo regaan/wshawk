@@ -5,11 +5,18 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const desktopDir = path.resolve(__dirname, '..');
-const electronBinary = process.platform === 'win32'
-    ? path.join(desktopDir, 'node_modules', '.bin', 'electron.cmd')
-    : path.join(desktopDir, 'node_modules', '.bin', 'electron');
+const electronBinary = require('electron');
 const snapshotPath = process.env.WSHAWK_DESKTOP_SMOKE_OUT || path.join(os.tmpdir(), 'wshawk-desktop-smoke.json');
 const timeoutMs = Number.parseInt(process.env.WSHAWK_DESKTOP_SMOKE_TIMEOUT_MS || '15000', 10);
+const profilePath = fs.mkdtempSync(path.join(os.tmpdir(), 'wshawk-electron-smoke-'));
+
+function cleanupProfile() {
+    try {
+        fs.rmSync(profilePath, { recursive: true, force: true });
+    } catch (_) {
+        // Electron/antivirus may release the temporary profile shortly after exit.
+    }
+}
 
 try {
     fs.rmSync(snapshotPath, { force: true });
@@ -25,7 +32,11 @@ const env = {
 };
 delete env.ELECTRON_RUN_AS_NODE;
 
-const child = spawn(electronBinary, [desktopDir], {
+const child = spawn(electronBinary, [
+    `--user-data-dir=${profilePath}`,
+    '--disable-gpu',
+    desktopDir,
+], {
     cwd: desktopDir,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -48,9 +59,25 @@ child.stderr.on('data', (data) => {
     stderr += data.toString();
 });
 
+child.on('error', (error) => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    cleanupProfile();
+    console.error(JSON.stringify({
+        status: 'error',
+        reason: 'electron-process-error',
+        error: error.message,
+        electronBinary,
+        snapshotPath,
+    }, null, 2));
+    process.exit(1);
+});
+
 child.on('exit', (code, signal) => {
     finished = true;
     clearTimeout(timer);
+    cleanupProfile();
 
     let snapshot = null;
     if (fs.existsSync(snapshotPath)) {

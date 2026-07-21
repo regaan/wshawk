@@ -13,16 +13,7 @@ import string
 from typing import List, Dict, Optional, Any, Set, Tuple
 from datetime import datetime
 
-try:
-    from ..__main__ import Logger
-except ImportError:
-    class Logger:
-        @staticmethod
-        def info(msg): print(f"[*] {msg}")
-        @staticmethod
-        def success(msg): print(f"[+] {msg}")
-        @staticmethod
-        def warning(msg): print(f"[!] {msg}")
+from ..console import Logger
 
 
 class ContextAwareGenerator:

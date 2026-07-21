@@ -37,6 +37,8 @@ test_venv/
 
 # Testing
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 .tox/
@@ -56,6 +58,17 @@ reports/
 docs/
 *.md
 !README.md
+
+# Repository-only applications and release inputs
+desktop/
+examples/
+extension/
+payloads/
+plugins/
+scripts/
+tests/
+validation/
+.wshawk/
 
 # CI/CD
 .github/

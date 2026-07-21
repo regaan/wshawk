@@ -1,25 +1,24 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "wshawk"
-version = "4.0.1"
+dynamic = ["version"]
 authors = [
     {name = "Regaan"}
 ]
 description = "Professional WebSocket security scanner with real vulnerability verification, session hijacking tests, and CVSS scoring"
 readme = "README.md"
-requires-python = ">=3.8"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Developers",
     "Topic :: Security",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -28,7 +27,6 @@ classifiers = [
 keywords = ["websocket", "security", "scanner", "penetration-testing", "bug-bounty", "vulnerability", "xss", "sqli", "session-hijacking", "cvss", "playwright", "oast", "waf-bypass"]
 dependencies = [
     "websockets>=12.0",
-    "playwright>=1.40.0",
     "aiohttp>=3.9.0",
     "PyYAML>=6.0",
     "flask>=3.0.0",
@@ -38,6 +36,24 @@ dependencies = [
     "dnspython>=2.4.0",
     "python-whois>=0.8.0",
     "cryptography>=41.0.0",
+]
+
+[project.optional-dependencies]
+browser = ["playwright>=1.40.0"]
+analysis = [
+    "cbor2>=5.6.1",
+    "colorama>=0.4.6",
+    "msgpack>=1.0.7",
+    "numpy>=1.26.0",
+    "scipy>=1.11.0",
+]
+dev = [
+    "build>=1.2.0",
+    "mypy>=1.10.0",
+    "pip-audit>=2.10.0",
+    "pytest>=8.0.0",
+    "ruff>=0.12.0",
+    "twine>=5.1.0",
 ]
 
 [project.urls]
@@ -51,8 +67,12 @@ wshawk-interactive = "wshawk.interactive:cli"
 wshawk-advanced = "wshawk.advanced_cli:cli"
 wshawk-defensive = "wshawk.defensive_cli:cli"
 
-[tool.setuptools]
-packages = {find = {}}
+[tool.setuptools.dynamic]
+version = {attr = "wshawk._version_info.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["wshawk", "wshawk.*"]
+exclude = ["tests", "tests.*", "validation", "validation.*", "examples", "examples.*", "scripts", "scripts.*"]
 
 [tool.setuptools.package-data]
 "wshawk" = [
@@ -61,3 +81,23 @@ packages = {find = {}}
     "web/templates/*.html",
     "web/static/*"
 ]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = ["validation"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.mypy]
+python_version = "3.10"
+files = [
+    "wshawk/_version_info.py",
+    "wshawk/bridge_security.py",
+    "wshawk/secret_store.py",
+]
+check_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_ignores = true

@@ -296,6 +296,30 @@ class PlatformRouteIntegrationTests(unittest.TestCase):
         )
         return status, response_headers, payload
 
+    def test_http_and_validation_errors_use_the_standard_envelope(self):
+        status, _, payload = self.request("GET", "/route-that-does-not-exist")
+        body = json.loads(payload)
+        self.assertEqual(status, 404)
+        self.assertEqual(body["status"], "error")
+        self.assertEqual(body["code"], "http_404")
+        self.assertEqual(body["message"], body["detail"])
+
+        status, _, payload = self.request(
+            "GET",
+            "/platform/projects/not-needed/events?limit=not-an-integer",
+        )
+        body = json.loads(payload)
+        self.assertEqual(status, 422)
+        self.assertEqual(
+            body,
+            {
+                "status": "error",
+                "code": "request_validation_error",
+                "message": "Request validation failed",
+                "detail": "Request validation failed",
+            },
+        )
+
     def test_protocol_map_and_export_routes_require_auth_and_return_project_data(self):
         status, _, payload = self.request(
             "POST",
@@ -554,6 +578,26 @@ class PlatformRouteIntegrationTests(unittest.TestCase):
 
         status, _, payload = asyncio.run(
             asgi_request(self.gui_bridge.app, "POST", "/api/extension/pair", headers=extension_headers, json_body={"extension_id": "trusted-extension-id"})
+        )
+        self.assertEqual(status, 403)
+        self.assertIn("approval code", payload)
+
+        status, _, payload = self.request(
+            "POST",
+            "/extension/pairing/approve",
+            json_body={"ttl_seconds": 300},
+        )
+        self.assertEqual(status, 200)
+        approval_code = json.loads(payload)["pairing"]["approval_code"]
+
+        status, _, payload = asyncio.run(
+            asgi_request(
+                self.gui_bridge.app,
+                "POST",
+                "/api/extension/pair",
+                headers=extension_headers,
+                json_body={"extension_id": "trusted-extension-id", "approval_code": approval_code},
+            )
         )
         self.assertEqual(status, 200)
         pair_body = json.loads(payload)

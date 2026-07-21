@@ -23,9 +23,11 @@ const historyCount = document.getElementById('history-count');
 
 const LEGACY_BRIDGE_BASE = 'http://127.0.0.1:8080';
 const API_URL = LEGACY_BRIDGE_BASE;
-let bridgePort = 8080;
-let bridgeReady = false;
-let bridgeConnectRequested = false;
+const rendererState = window.WSHawkRendererState;
+const safeDOM = window.WSHawkDOM;
+let bridgePort = rendererState.bridge.port;
+let bridgeReady = rendererState.bridge.ready;
+let bridgeConnectRequested = rendererState.bridge.connectRequested;
 
 const rawFetch = window.fetch.bind(window);
 const apiModule = window.WSHawkModules?.api;
@@ -70,6 +72,7 @@ window.api.receive('bridge-port', (port) => {
     const parsed = parseInt(port, 10);
     if (!Number.isNaN(parsed)) {
         bridgePort = parsed;
+        rendererState.bridge.port = parsed;
     }
 
     if (bridgeConnectRequested && typeof connectBridge === 'function' && bridgeReady) {
@@ -79,6 +82,7 @@ window.api.receive('bridge-port', (port) => {
 
 window.api.receive('bridge-ready', (ready) => {
     bridgeReady = Boolean(ready);
+    rendererState.bridge.ready = bridgeReady;
 
     if (bridgeConnectRequested && typeof connectBridge === 'function') {
         connectBridge(true);
@@ -100,7 +104,6 @@ const advancedMenu = document.getElementById('advanced-menu');
 const modeBadge = document.getElementById('mode-badge');
 const btnModeText = document.getElementById('btn-mode-text');
 
-let isAdvanced = false;
 
 navItems.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -122,12 +125,13 @@ navItems.forEach(btn => {
 });
 
 // Mode: 'standard' | 'advanced' | 'web'
-let currentMode = 'standard';
+let currentMode = rendererState.mode.current;
 const webMenu = document.getElementById('web-menu');
 
 toggleModeBtn.addEventListener('click', () => {
     if (currentMode === 'standard') {
         currentMode = 'advanced';
+        rendererState.mode.current = currentMode;
         modeBadge.textContent = 'ADVANCED';
         modeBadge.className = 'badge advanced';
         btnModeText.textContent = 'Switch to Web';
@@ -135,6 +139,7 @@ toggleModeBtn.addEventListener('click', () => {
         webMenu.style.display = 'none';
     } else if (currentMode === 'advanced') {
         currentMode = 'web';
+        rendererState.mode.current = currentMode;
         modeBadge.textContent = 'WEB';
         modeBadge.className = 'badge web';
         btnModeText.textContent = 'Switch to Standard';
@@ -142,6 +147,7 @@ toggleModeBtn.addEventListener('click', () => {
         webMenu.style.display = 'block';
     } else {
         currentMode = 'standard';
+        rendererState.mode.current = currentMode;
         modeBadge.textContent = 'STANDARD';
         modeBadge.className = 'badge standard';
         btnModeText.textContent = 'Switch to Advanced';
@@ -151,24 +157,9 @@ toggleModeBtn.addEventListener('click', () => {
     }
 });
 
-// Project Management State
-let currentProject = {
-    projectId: null,
-    url: '',
-    vulns: 0,
-    msgs: 0,
-    findings: [],
-    logs: [],
-    history: []
-};
-const platformState = {
-    syncPromise: null,
-    refreshTimer: null,
-    refreshQueued: null,
-    refreshing: false,
-    reqforgeIdentityCache: [],
-    lastAnnouncement: null
-};
+// Project and platform state live in one shared renderer store.
+let currentProject = rendererState.project;
+const platformState = rendererState.platform;
 
 const welcomeModal = document.getElementById('welcome-modal');
 const mainApp = document.getElementById('main-app');
@@ -179,6 +170,7 @@ targetUrlInput?.addEventListener('input', () => {
 
 function setCurrentProject(nextProject) {
     currentProject = nextProject;
+    rendererState.project = nextProject;
 }
 
 function getCurrentProject() {
@@ -195,7 +187,7 @@ function getPlatformContext() {
         addHistoryRow: (dir, data, options) => addHistoryRow(dir, data, options),
         appendLog,
         clearFindingStore: () => clearFindingStore(),
-        clearSystemLog: () => { systemLog.innerHTML = ''; },
+        clearSystemLog: () => safeDOM.clear(systemLog),
         findingsContainer,
         globalVulns,
         getCurrentMode,
@@ -217,7 +209,10 @@ function getPlatformContext() {
         resetFindingsView: (message) => resetFindingsView(message),
         resetHistoryView: (message) => resetHistoryView(message),
         setCurrentProject,
-        setMsgCount: (value) => { msgCount = value; },
+        setMsgCount: (value) => {
+            msgCount = value;
+            rendererState.counters.messages = value;
+        },
         setReqForgePlatformStatus: (message, tone) => setReqForgePlatformStatus(message, tone),
         startPlatformProjectAutoRefresh: () => startPlatformProjectAutoRefresh(),
         stopPlatformProjectAutoRefresh: () => stopPlatformProjectAutoRefresh(),
@@ -448,6 +443,7 @@ let msgCount = 0;
 
 function connectBridge(forceReconnect = false) {
     bridgeConnectRequested = true;
+    rendererState.bridge.connectRequested = true;
 
     if (!bridgeReady) {
         connPill.className = 'connection-status reconnecting';
@@ -621,21 +617,29 @@ let _handshakeIdx = 0;
 function addHandshakeRow(data) {
     const tbody = document.getElementById('handshake-tbody');
     if (!tbody) return;
-    if (tbody.querySelector('.empty-tr')) tbody.innerHTML = '';
+    if (tbody.querySelector('.empty-tr')) safeDOM.clear(tbody);
 
     const idx = _handshakeIdx++;
     _handshakeStore.set(idx, data);
 
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td>${esc(time)}</td>
-        <td><span class="text-accent" title="${esc(data.url)}">${esc(truncate(data.url, 50))}</span></td>
-        <td>
-            <button class="btn secondary small" style="font-size: 10px; padding: 2px 6px;" data-hs-idx="${idx}">Use</button>
-        </td>
-    `;
-    row.querySelector('button[data-hs-idx]').addEventListener('click', () => {
+    const useButton = safeDOM.element('button', {
+        className: 'btn secondary small',
+        text: 'Use',
+        dataset: { hsIdx: idx },
+    });
+    useButton.style.cssText = 'font-size: 10px; padding: 2px 6px;';
+    const target = safeDOM.element('span', {
+        className: 'text-accent',
+        text: truncate(data.url, 50),
+        title: data.url,
+    });
+    const row = safeDOM.element('tr', {}, [
+        safeDOM.element('td', { text: time }),
+        safeDOM.element('td', {}, [target]),
+        safeDOM.element('td', {}, [useButton]),
+    ]);
+    useButton.addEventListener('click', () => {
         const hsData = _handshakeStore.get(idx);
         if (hsData) useHandshake(hsData);
     });
@@ -660,24 +664,26 @@ let baselineLength = null;
 function addBlasterResult(payload, status, resp) {
     const tableInfo = document.getElementById('blaster-tbody');
     if (tableInfo.querySelector('.empty-tr')) {
-        tableInfo.innerHTML = '';
+        safeDOM.clear(tableInfo);
         baselineLength = null;
     }
     const domVerifying = document.getElementById('blaster-dom-verify')?.checked;
-    const domCell = domVerifying
-        ? `<td><span class="dom-verified-badge dom-badge-pending">Verifying...</span></td>`
-        : `<td><span class="dom-verified-badge dom-badge-skipped">—</span></td>`;
-    const html = `
-        <tr id="fuzz-${hashString(payload)}">
-            <td>${esc(truncate(payload, 30))}</td>
-            <td class="status-cell">${esc(status)}</td>
-            <td class="length-cell">-</td>
-            ${domCell}
-            <td class="diff-cell">-</td>
-            <td class="resp-cell">${esc(resp)}</td>
-        </tr>
-        `;
-    tableInfo.insertAdjacentHTML('afterbegin', html);
+    const domCell = safeDOM.element('td', {}, [
+        safeDOM.badge(
+            `dom-verified-badge ${domVerifying ? 'dom-badge-pending' : 'dom-badge-skipped'}`,
+            domVerifying ? 'Verifying...' : '—',
+        ),
+    ]);
+    const row = safeDOM.element('tr', {}, [
+        safeDOM.element('td', { text: truncate(payload, 30) }),
+        safeDOM.element('td', { className: 'status-cell', text: status }),
+        safeDOM.element('td', { className: 'length-cell', text: '-' }),
+        domCell,
+        safeDOM.element('td', { className: 'diff-cell', text: '-' }),
+        safeDOM.element('td', { className: 'resp-cell', text: resp }),
+    ]);
+    row.id = `fuzz-${hashString(payload)}`;
+    tableInfo.prepend(row);
 }
 
 function updateBlasterResult(payload, status, length, resp, domVerified, domEvidence) {
@@ -686,32 +692,45 @@ function updateBlasterResult(payload, status, length, resp, domVerified, domEvid
         row.querySelector('.status-cell').innerText = status;
         row.querySelector('.status-cell').className = `status-cell sev-${status === 'success' ? 'LOW' : 'HIGH'}`;
 
-        let diffHtml = '-';
+        let diffText = '-';
+        let diffColor = '';
+        let diffWeight = '';
         if (typeof length === 'number') {
             row.querySelector('.length-cell').innerText = length;
             if (baselineLength === null) {
                 baselineLength = length;
-                diffHtml = '<span style="color:var(--text-muted);">(baseline)</span>';
+                diffText = '(baseline)';
+                diffColor = 'var(--text-muted)';
             } else {
                 const diff = length - baselineLength;
                 if (diff !== 0) {
-                    const color = Math.abs(diff) > 20 ? 'var(--danger)' : 'var(--warning)';
-                    diffHtml = `<span style="color:${color}; font-weight:bold;">${diff > 0 ? '+' : ''}${diff}</span>`;
+                    diffColor = Math.abs(diff) > 20 ? 'var(--danger)' : 'var(--warning)';
+                    diffWeight = 'bold';
+                    diffText = `${diff > 0 ? '+' : ''}${diff}`;
                 } else {
-                    diffHtml = '<span style="color:var(--text-muted);">0</span>';
+                    diffText = '0';
+                    diffColor = 'var(--text-muted)';
                 }
             }
         }
-        row.querySelector('.diff-cell').innerHTML = diffHtml;
+        const diffCell = row.querySelector('.diff-cell');
+        const diffNode = safeDOM.element('span', { text: diffText });
+        diffNode.style.color = diffColor;
+        diffNode.style.fontWeight = diffWeight;
+        diffCell.replaceChildren(diffNode);
         row.querySelector('.resp-cell').innerText = truncate(resp, 50);
 
         // DOM Verified badge
         const domCell = row.querySelector('.dom-verified-badge')?.parentElement;
         if (domCell && domVerified !== undefined) {
             if (domVerified === true) {
-                domCell.innerHTML = `<span class="dom-verified-badge dom-badge-confirmed" title="${esc(domEvidence || '')}">CONFIRMED XSS</span>`;
+                domCell.replaceChildren(
+                    safeDOM.badge('dom-verified-badge dom-badge-confirmed', 'CONFIRMED XSS', domEvidence || '')
+                );
             } else if (domVerified === false) {
-                domCell.innerHTML = `<span class="dom-verified-badge dom-badge-unverified" title="${esc(domEvidence || 'No execution')}">Unverified</span>`;
+                domCell.replaceChildren(
+                    safeDOM.badge('dom-verified-badge dom-badge-unverified', 'Unverified', domEvidence || 'No execution')
+                );
             }
         }
     }
@@ -894,7 +913,7 @@ function resetFindingsView(message = 'No vulnerabilities detected on the target.
         evidenceModule.resetFindingsView({ findingsContainer, globalVulns, message });
     } else {
         clearFindingStore();
-        findingsContainer.innerHTML = `<div class="empty-state">${esc(message)}</div>`;
+        safeDOM.emptyState(findingsContainer, message);
     }
     valVulns.innerText = '0';
     valRisk.innerText = 'SECURE';
@@ -965,9 +984,10 @@ function resetHistoryView(message = 'Awaiting traffic capture...') {
     if (trafficModule) {
         trafficModule.resetHistoryView({ historyTbody, historyData, message });
     } else {
-        historyTbody.innerHTML = `<tr class="empty-tr"><td colspan="6">${esc(message)}</td></tr>`;
+        safeDOM.emptyTable(historyTbody, message, 6);
     }
     msgCount = 0;
+    rendererState.counters.messages = 0;
     valMsgs.innerText = '0';
     historyCount.innerText = '0 frames';
 }
@@ -990,6 +1010,7 @@ function renderPlatformTimeline(events = []) {
         ? trafficModule.renderPlatformTimeline({ historyTbody, historyData, events })
         : 0;
     msgCount = count;
+    rendererState.counters.messages = count;
     valMsgs.innerText = String(msgCount);
     historyCount.innerText = `${msgCount} frames`;
 }

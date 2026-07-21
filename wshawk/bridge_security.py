@@ -13,6 +13,7 @@ import ipaddress
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import TypedDict
 from urllib.parse import parse_qs, urlparse
 
 from wshawk.secret_store import SecretStore
@@ -23,6 +24,8 @@ TOKEN_HEADER = "X-WSHawk-Token"
 TOKEN_QUERY_PARAM = "token"
 EXTENSION_TOKEN_HEADER = "X-WSHawk-Extension-Token"
 EXTENSION_ID_HEADER = "X-WSHawk-Extension-Id"
+DEFAULT_EXTENSION_TOKEN_TTL_SECONDS = 60 * 60
+MAX_EXTENSION_TOKEN_TTL_SECONDS = 8 * 60 * 60
 
 BRIDGE_TOKEN = os.environ.get(TOKEN_ENV_VAR) or secrets.token_urlsafe(32)
 
@@ -43,12 +46,20 @@ EXTENSION_PROTECTED_PATHS = frozenset({
 })
 
 
+class _ExtensionToken(TypedDict):
+    origin: str
+    extension_id: str
+    expires_at: datetime
+
+
 class ExtensionPairingRegistry:
-    def __init__(self):
-        self.secret_store = SecretStore("wshawk-bridge")
-        self._active_tokens = {}
+    def __init__(self, secret_store: SecretStore | None = None):
+        self.secret_store = secret_store or SecretStore("wshawk-bridge")
+        self._active_tokens: dict[str, _ExtensionToken] = {}
         self._trusted_origin_key = "trusted-extension-origin"
         self._trusted_extension_id_key = "trusted-extension-id"
+        self._approval_code = ""
+        self._approval_expires_at: datetime | None = None
 
     @staticmethod
     def _now() -> datetime:
@@ -60,7 +71,43 @@ class ExtensionPairingRegistry:
     def get_trusted_extension_id(self) -> str:
         return str(self.secret_store.get(self._trusted_extension_id_key, "") or "")
 
-    def issue_token(self, origin: str | None, extension_id: str | None = None, ttl_seconds: int = 8 * 60 * 60) -> dict:
+    def reconfigure(self, secret_store: SecretStore | None = None) -> None:
+        """Reset process-local sessions while retaining securely stored trust."""
+        self.secret_store = secret_store or SecretStore("wshawk-bridge")
+        self._active_tokens.clear()
+        self._approval_code = ""
+        self._approval_expires_at = None
+
+    def begin_pairing(self, ttl_seconds: int = 5 * 60) -> dict:
+        """Create a short-lived approval code for an authenticated desktop user."""
+        self._approval_code = f"{secrets.randbelow(1_000_000):06d}"
+        self._approval_expires_at = self._now() + timedelta(seconds=max(60, min(int(ttl_seconds), 15 * 60)))
+        return {
+            "approval_code": self._approval_code,
+            "expires_at": self._approval_expires_at.isoformat(),
+        }
+
+    def _consume_approval(self, approval_code: str | None) -> bool:
+        if not self._approval_code or not self._approval_expires_at:
+            return False
+        if self._approval_expires_at <= self._now():
+            self._approval_code = ""
+            self._approval_expires_at = None
+            return False
+        candidate = str(approval_code or "").strip()
+        if not candidate or not secrets.compare_digest(candidate, self._approval_code):
+            return False
+        self._approval_code = ""
+        self._approval_expires_at = None
+        return True
+
+    def issue_token(
+        self,
+        origin: str | None,
+        extension_id: str | None = None,
+        ttl_seconds: int = DEFAULT_EXTENSION_TOKEN_TTL_SECONDS,
+        approval_code: str | None = None,
+    ) -> dict:
         normalized_origin = normalize_extension_origin(origin)
         if not normalized_origin:
             raise ValueError("extension pairing requires a trusted extension origin")
@@ -75,12 +122,15 @@ class ExtensionPairingRegistry:
             raise PermissionError("extension id does not match the paired extension")
 
         if not trusted_origin:
+            if not self._consume_approval(approval_code):
+                raise PermissionError("first-time extension pairing requires a valid desktop approval code")
             self.secret_store.set(self._trusted_origin_key, normalized_origin)
         if normalized_id and not trusted_extension_id:
             self.secret_store.set(self._trusted_extension_id_key, normalized_id)
 
         token = secrets.token_urlsafe(32)
-        expires_at = self._now() + timedelta(seconds=max(60, int(ttl_seconds)))
+        bounded_ttl = max(60, min(int(ttl_seconds), MAX_EXTENSION_TOKEN_TTL_SECONDS))
+        expires_at = self._now() + timedelta(seconds=bounded_ttl)
         self._active_tokens[token] = {
             "origin": normalized_origin,
             "extension_id": normalized_id,
@@ -96,6 +146,8 @@ class ExtensionPairingRegistry:
 
     def revoke(self, *, clear_trust: bool = False) -> None:
         self._active_tokens.clear()
+        self._approval_code = ""
+        self._approval_expires_at = None
         if clear_trust:
             self.secret_store.delete(self._trusted_origin_key)
             self.secret_store.delete(self._trusted_extension_id_key)
@@ -128,10 +180,15 @@ class ExtensionPairingRegistry:
 
     def describe(self) -> dict:
         self._prune()
+        approval_expires_at = self._approval_expires_at
+        approval_pending = bool(self._approval_code and approval_expires_at and approval_expires_at > self._now())
         return {
             "paired_origin": self.get_trusted_origin(),
             "paired_extension_id": self.get_trusted_extension_id(),
             "active_token_count": len(self._active_tokens),
+            "approval_required": not bool(self.get_trusted_origin()),
+            "approval_pending": approval_pending,
+            "approval_expires_at": approval_expires_at.isoformat() if approval_pending and approval_expires_at else "",
         }
 
     def _prune(self) -> None:
@@ -150,6 +207,8 @@ EXTENSION_PAIRING = ExtensionPairingRegistry()
 
 def is_valid_bridge_token(candidate: str | None) -> bool:
     """Constant-time token validation."""
+    if candidate is None:
+        return False
     return bool(candidate) and secrets.compare_digest(candidate, BRIDGE_TOKEN)
 
 

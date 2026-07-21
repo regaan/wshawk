@@ -10,6 +10,7 @@ const LOCAL_STORAGE_KEYS = [
     'lastDetectedBridgeUrl',
     'lastBridgeStatus',
     'captureScopes',
+    'pairingCode',
 ];
 const SESSION_STORAGE_KEYS = [
     'extensionAccessToken',
@@ -38,6 +39,7 @@ const state = {
     lastDetectedBridgeUrl: '',
     lastBridgeStatus: null,
     captureScopes: '',
+    pairingCode: '',
     extensionAccessToken: '',
     extensionAccessTokenExpiresAt: '',
     pairedOrigin: '',
@@ -57,6 +59,18 @@ function storageRemove(area, keys) {
     return new Promise((resolve) => area.remove(keys, resolve));
 }
 
+function isLoopbackBridgeHost(rawHostname) {
+    const hostname = String(rawHostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+    if (hostname === 'localhost' || hostname === '::1') {
+        return true;
+    }
+
+    const octets = hostname.split('.');
+    return octets.length === 4
+        && octets[0] === '127'
+        && octets.every((octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255);
+}
+
 function normalizeBridgeUrl(rawValue) {
     const raw = String(rawValue || '').trim();
     if (!raw) return '';
@@ -68,6 +82,12 @@ function normalizeBridgeUrl(rawValue) {
 
     try {
         const parsed = new URL(candidate);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+            return '';
+        }
+        if (parsed.username || parsed.password || !isLoopbackBridgeHost(parsed.hostname)) {
+            return '';
+        }
         if (!parsed.pathname || parsed.pathname === '/') {
             parsed.pathname = HANDSHAKE_PATH;
         }
@@ -158,6 +178,7 @@ async function loadState() {
     state.lastDetectedBridgeUrl = normalizeBridgeUrl(storedLocal.lastDetectedBridgeUrl);
     state.lastBridgeStatus = storedLocal.lastBridgeStatus || null;
     state.captureScopes = normalizeCaptureScopes(storedLocal.captureScopes);
+    state.pairingCode = String(storedLocal.pairingCode || '').trim();
 
     state.extensionAccessToken = String(storedSession.extensionAccessToken || '').trim();
     state.extensionAccessTokenExpiresAt = String(storedSession.extensionAccessTokenExpiresAt || '').trim();
@@ -300,6 +321,7 @@ async function ensurePaired(forceDetect = false) {
         body: JSON.stringify({
             extension_id: chrome.runtime.id,
             extension_version: chrome.runtime.getManifest().version,
+            approval_code: state.pairingCode,
         }),
     }, 1800);
 
@@ -309,6 +331,8 @@ async function ensurePaired(forceDetect = false) {
     }
 
     await persistSession(result.payload.pairing || {});
+    state.pairingCode = '';
+    await storageSet(chrome.storage.local, { pairingCode: '' });
     state.lastBridgeStatus = target.info || state.lastBridgeStatus;
     return true;
 }
@@ -451,12 +475,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'wshawk:save-config') {
+        const rawBridgeUrl = String(message.bridgeUrl || '').trim();
+        const bridgeUrl = normalizeBridgeUrl(rawBridgeUrl);
+        if (rawBridgeUrl && !bridgeUrl) {
+            sendResponse({
+                ok: false,
+                error: 'Bridge URL must use HTTP(S) on localhost, 127.0.0.0/8, or ::1.',
+            });
+            return false;
+        }
         const nextValues = {
-            bridgeUrl: normalizeBridgeUrl(message.bridgeUrl),
+            bridgeUrl,
             projectId: String(message.projectId || '').trim(),
             capturingEnabled: message.capturingEnabled !== false,
             autoDetectBridge: message.autoDetectBridge !== false,
             captureScopes: normalizeCaptureScopes(message.captureScopes),
+            pairingCode: String(message.pairingCode || '').replace(/\D/g, '').slice(0, 6),
         };
         storageSet(chrome.storage.local, nextValues).then(async () => {
             await loadState();

@@ -1,0 +1,21 @@
+{
+  "required_checks": {
+    "cors_tester_detects_origin_reflection": true,
+    "crawler_discovers_pages_and_sensitive_files": true,
+    "csrf_forge_replays_unprotected_action": true,
+    "directory_scanner_finds_admin": true,
+    "fingerprinter_detects_stack": true,
+    "fuzzer_detects_reflection": true,
+    "header_analyzer_handles_http_hsts": true,
+    "http_authz_diff_detects_role_change": true,
+    "http_race_detects_duplicate_success": true,
+    "http_replay_uses_identity": true,
+    "port_scanner_finds_lab_port": true,
+    "prototype_pollution_detects_canary": true,
+    "redirect_scanner_detects_external_redirect": true,
+    "sensitive_finder_uses_auth_headers": true,
+    "ssrf_long_page_control_has_no_false_positive": true,
+    "ssrf_prober_uses_auth_and_finds_metadata": true,
+    "waf_detector_identifies_modsecurity": true
+  }
+}
