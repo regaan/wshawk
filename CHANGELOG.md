@@ -2,6 +2,22 @@ All notable changes to WSHawk will be documented in this file.
 
 ## [4.0.2] - 2026-07-17
 
+### Added
+- **DOM Invader Decomposition** — Split the monolithic `dom_invader.py` into focused modules: `dom_auth.py` (auth flow recording/replay), `dom_browser.py` (browser pool management), `dom_xss.py` (XSS verification engine), `dom_models.py` (data models), and `dom_runtime.py` (runtime coordination).
+- **Scanner Attack Engine** (`scanner_attacks.py`) — Extracted attack orchestration from `scanner_v2.py` into a dedicated module with structured error types (`scanner_errors.py`).
+- **Legacy Runtime Extraction** (`legacy_runtime.py`) — Extracted 982-line runtime logic from `legacy_core.py` to reduce module size from 1200+ lines.
+- **Binary Mutations Module** (`binary_mutations.py`) — Dedicated binary protocol mutation engine separated from `binary_handler.py`.
+- **Project Correlation Engine** (`store/project_correlation.py`) — Cross-project vulnerability correlation and trending analysis.
+- **WAF Signature Database** (`waf/signatures.py`) — Externalized WAF detection signatures from inline detector logic.
+- **Payload Catalog** (`payload_catalog.py`) — Centralized payload registry replacing scattered payload references.
+- **TLS Utilities** (`tls.py`) — Shared TLS/SSL helper for certificate and cipher validation.
+- **Daemon Route Decomposition** — Split massive route files into focused modules: `platform_route_support.py`, `web_route_support.py`, `web_workflow_routes.py`, `session_routes.py`, and `errors.py`.
+- **CLI Overhaul** — New `cli.py` and `console.py` modules providing unified entry points and UTF-8-safe console output.
+- **Database Row Models** (`database_rows.py`) — Typed row models for the SQLite project store.
+- **Benchmark Suite** — New `benchmarks/` framework with `desktop_security_lab`, `industry_lab`, and `run.py` harness for reproducible security validation.
+- **Validation Benchmarks** — Added `web_attack_benchmark` and `websocket_attack_benchmark` scenarios with deterministic apps and scoring.
+- **Release Scripts** — `release_desktop_artifacts.py`, `verify_pyinstaller_hiddenimports.py`, and `verify_wheel_contents.py` for release-gate automation.
+
 ### Security
 - **Secret Storage** — Fixed Windows DPAPI initialization and made configured secure backends fail closed instead of silently falling back to plaintext.
 - **Local Services** — Defaulted the legacy dashboard to loopback, required authentication for remote binds, added CSRF/throttling/security headers, and blocked remote requests to private scan targets.
@@ -9,6 +25,9 @@ All notable changes to WSHawk will be documented in this file.
 - **Renderer Hardening** — Removed unsafe dynamic HTML rendering paths and added regression checks for desktop and extension JavaScript.
 - **Validation Artifact Redaction** — Redacted authentication and session material at the validation persistence boundary, including secret copies embedded in messages and URL query parameters.
 - **Dependency Auditing** — Added Python advisory auditing to the release-security gate alongside the existing production and complete npm audits.
+- **Bridge Security** — Hardened bridge authentication and CSRF protections in `bridge_security.py`.
+- **Sandbox Enforcement** — Desktop smoke tests now always disable sandbox in CI to prevent SIGTRAP crashes, while production builds retain full sandbox enforcement.
+- **Path Validation** — Added `tempfile.gettempdir()` to allowed roots in `fuzzer.py` and `dir_scanner.py` for safe temporary file access during test execution.
 
 ### Changed
 - **Compatibility Baseline** — Declared Python 3.10–3.13 and moved optional browser and analysis dependencies into extras.
@@ -16,11 +35,40 @@ All notable changes to WSHawk will be documented in this file.
 - **Packaging** — Made `pyproject.toml` and `wshawk/_version_info.py` authoritative, excluded repository-only files from wheels, and consolidated container publishing.
 - **Research Publication** — Added the WSHawk preprint records from Zenodo and Figshare to the project README and generated release notes.
 - **GitHub Releases** — Platform installers now appear as clearly named Actions artifacts and are attached to tagged releases with SHA-256 manifests, installation guidance, categorized changes, and direct download links.
+- **Desktop Electron Hardening** — Rewrote headless CI switches: removed crash-inducing `--single-process` and `--in-process-gpu`, added `--headless=new`, `--no-zygote`, `--disable-gpu-sandbox`, platform-guarded `--ozone-platform` to Linux only.
+- **Defensive Validation Expansion** — Extended `defensive_validation.py` with 400+ lines of new validation logic including enhanced CSWSH, DNS exfiltration, and origin threshold testing.
+- **WSS Security Validator** — Expanded TLS/cipher/certificate validation with 240+ lines of additional checks.
+- **Advanced CLI** — Refactored `advanced_cli.py` and `legacy_advanced_cli.py` with improved argument handling and interactive mode.
+- **Scanner v2 Slimming** — Reduced `scanner_v2.py` by 596 lines by extracting attack orchestration to `scanner_attacks.py`.
+- **DOM Invader Slimming** — Reduced `dom_invader.py` by 793 lines by decomposing into focused sub-modules.
+- **Legacy Core Slimming** — Reduced `legacy_core.py` by 1221 lines by extracting runtime logic.
+- **Web Routes Slimming** — Reduced `daemon/web_routes.py` by 617 lines by extracting workflow and support modules.
+- **Platform Routes Slimming** — Reduced `daemon/platform_routes.py` by 387 lines into `platform_route_support.py`.
+- **Secret Store** — Refactored with 120 lines of improved platform-specific secure storage backends.
+- **Session Hijacking Tester** — Hardened with additional auth flow and token validation checks.
+- **Smart Payloads** — Improved `context_generator.py`, `feedback_loop.py`, and `payload_evolver.py` with better error handling and adaptive tuning.
+- **Web Pentest Modules** — Hardened `ssrf_prober.py`, `waf_detector.py`, `tech_fingerprint.py`, `cors_tester.py`, `redirect_scanner.py`, and `header_analyzer.py` with stricter validation and error handling.
+- **Integration Connectors** — Improved error handling in `defectdojo.py`, `jira_connector.py`, and `webhook.py`.
+- **GUI Bridge** — Enhanced Python sidecar with 82 lines of improved bridge communication and error recovery.
 
 ### Fixed
 - **Desktop Sidecar Packaging** — Removed stale PyInstaller hidden imports and added a pre-build verifier that fails when declared runtime modules are unavailable.
 - **Container Build Context** — Excluded desktop dependencies and other repository-only inputs from Docker build contexts.
 - **CLI Reliability** — Unified all installed command versions and bounded defensive DNS/origin probing behavior for unavailable targets.
+- **Desktop CI Smoke Crash (Linux)** — `SIGTRAP` caused by `--single-process` forcing renderer/GPU into main process. Removed.
+- **Desktop CI Smoke Crash (macOS arm64)** — `SIGTRAP` caused by unstable `--single-process` on ARM and `--ozone-platform=headless` (Linux-only flag). Fixed.
+- **Desktop CI Smoke Crash (Windows)** — `ContextResult::kFatalFailure` caused by `--in-process-gpu` conflicting with `--disable-gpu`. Removed.
+- **Wordlist Empty Error** — `ValueError` in fuzzer/scanner tests when temp directories were outside hardcoded `allowed_roots`.
+- **Legacy Web Security** — Fixed rendering and authentication paths in `web/legacy_app.py` templates.
+
+### Removed
+- **`ssrf_test.py`** — Removed obsolete standalone SSRF test module (functionality consolidated into `web_pentest/ssrf_prober.py`).
+
+### Tests
+- Added 18 new test modules: `test_benchmark_harness`, `test_bridge_security`, `test_cli_entrypoints`, `test_cli_scan_reliability`, `test_daemon_errors`, `test_daemon_state`, `test_defensive_dns_callback`, `test_desktop_security`, `test_desktop_security_lab`, `test_legacy_web_security`, `test_memory_bounds`, `test_module_boundaries`, `test_optional_dependencies`, `test_pyinstaller_spec`, `test_release_desktop_artifacts`, `test_security_attack_benchmark_labs`, `test_web_attack_regressions`, `test_http_attack_services`.
+- Expanded existing tests: `test_report_exporter`, `test_secret_store`, `test_validation_runner`, `test_vulnerability_verifier`, `test_web_platform_runtime`, `test_release_security_checks`.
+
+
 
 ## [4.0.1] - 2026-03-28
 
