@@ -29,12 +29,16 @@ const env = {
     WSHAWK_DESKTOP_SMOKE: '1',
     WSHAWK_DESKTOP_SMOKE_OUT: snapshotPath,
     WSHAWK_DESKTOP_SMOKE_TIMEOUT_MS: String(timeoutMs),
+    WSHAWK_E2E_NO_SANDBOX: '1',
 };
 delete env.ELECTRON_RUN_AS_NODE;
 
 const child = spawn(electronBinary, [
     `--user-data-dir=${profilePath}`,
     '--disable-gpu',
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
     desktopDir,
 ], {
     cwd: desktopDir,
