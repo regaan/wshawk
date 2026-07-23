@@ -1,5 +1,28 @@
 All notable changes to WSHawk will be documented in this file.
 
+## [4.0.3] - 2026-07-23
+
+### Added
+
+- **Electron + Go Desktop Edition** — Added a separately packaged Electron application backed by a private Go worker over versioned stdio JSON-RPC.
+- **Authorization Matrices** — Added anonymous and multi-identity HTTP, GraphQL, WebSocket room, and subscription authorization testing with a visual access grid.
+- **Authorization Policies** — Added explicit IDOR/BOLA, vertical escalation, missing-authentication, BFLA, admin-only, tenant-isolation, and ownership-transfer policies.
+- **Object Discovery** — Added path, query, JSON, GraphQL-variable, numeric-neighbor, UUID, and captured-traffic object candidate discovery.
+- **Safe Write Testing** — Added non-transmitting dry runs, explicit confirmation, before/after evidence, bounded execution, cleanup, and verified rollback.
+- **Findings Workspace** — Added lifecycle, severity, confidence, duplicate consolidation, protected evidence preview, selected export, and stable-ID retesting.
+- **Electron + Go Lab** — Added secure and deliberately vulnerable HTTP, GraphQL, and WebSocket authorization controls with a scored 34-scenario benchmark.
+
+### Security
+
+- **Encrypted Electron + Go Projects** — Added AES-256-GCM content encryption with an operating-system protected project key.
+- **Evidence Protection** — Added automatic secret redaction, hash-only evidence, retention limits, sanitized replay instructions, target fingerprints, and explicit reveal/copy controls.
+
+### Changed
+
+- **Dual Desktop Releases** — A `v4.0.3` tag publishes the classic WSHawk release and a separate `electron-go-v4.0.3` release from the same commit.
+- **Version Synchronization** — Updated Python, classic desktop, Electron + Go desktop, browser extension, Docker, citation, validation, and evidence version surfaces to 4.0.3.
+- **Documentation** — Added a dedicated Electron + Go guide and rewrote the local lab/operator documentation for end users.
+
 ## [4.0.2] - 2026-07-17
 
 ### Added

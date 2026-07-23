@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   quality:
+    if: startsWith(github.event.release.tag_name, 'v')
     uses: ./.github/workflows/ci.yml
 
   release-build:

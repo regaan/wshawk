@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WSHawk Owned Security Lab</title>
+    <link rel="stylesheet" href="/lab/styles.css">
+    <script src="/lab/app.js" defer></script>
+</head>
+<body>
+    <header>
+        <div>
+            <p class="eyebrow">LOOPBACK-ONLY · AUTHORIZED TESTING</p>
+            <h1>WSHawk Owned Security Lab</h1>
+            <p class="lede">Deterministic targets for validating the Electron + Go desktop without touching third-party systems.</p>
+        </div>
+        <div id="lab-status" class="status pending">Checking lab…</div>
+    </header>
+
+    <main>
+        <section class="card quickstart">
+            <div>
+                <h2>Desktop target</h2>
+                <p>Paste this origin into WSHawk, then use the endpoint matrix below for individual tools.</p>
+            </div>
+            <div class="copy-row">
+                <code id="lab-origin"></code>
+                <button type="button" data-copy="origin">Copy</button>
+            </div>
+        </section>
+
+        <section class="grid metrics" aria-label="Lab telemetry">
+            <article class="card"><span>HTTP health</span><strong id="health-value">—</strong></article>
+            <article class="card"><span>WebSocket</span><strong id="ws-value">—</strong></article>
+            <article class="card"><span>OAST callbacks</span><strong id="oast-value">0</strong></article>
+            <article class="card"><span>Scope</span><strong>127.0.0.1</strong></article>
+        </section>
+
+        <section class="card">
+            <div class="section-title">
+                <div><p class="eyebrow">TARGET MATRIX</p><h2>Deterministic security cases</h2></div>
+                <button id="refresh-btn" type="button">Refresh telemetry</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Feature</th><th>Target</th><th>Expected observation</th></tr></thead>
+                    <tbody id="target-matrix"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grid workbenches">
+            <article class="card">
+                <p class="eyebrow">HTTP AUTHORIZATION</p>
+                <h2>Identity difference</h2>
+                <label for="role-select">Role header</label>
+                <select id="role-select"><option value="guest">guest</option><option value="admin">admin</option></select>
+                <button id="auth-btn" type="button">Send /auth request</button>
+                <pre id="auth-output">Waiting…</pre>
+            </article>
+
+            <article class="card">
+                <p class="eyebrow">WEBSOCKET</p>
+                <h2>Text-frame echo</h2>
+                <label for="ws-payload">Payload</label>
+                <input id="ws-payload" value='{"action":"lab.echo","value":"hello"}'>
+                <button id="ws-btn" type="button">Connect and send</button>
+                <pre id="ws-output">Waiting…</pre>
+            </article>
+
+            <article class="card">
+                <p class="eyebrow">BROWSER EVIDENCE</p>
+                <h2>DOM-XSS canary</h2>
+                <p>This owned endpoint deliberately executes a unique marker so Playwright can collect evidence.</p>
+                <a id="dom-link" class="button-link" target="_blank" rel="noopener">Open canary page</a>
+            </article>
+
+            <article class="card">
+                <p class="eyebrow">AUTH RECORDING</p>
+                <h2>Multi-identity browser login</h2>
+                <p>Records an HttpOnly session cookie plus bearer, session and CSRF tokens for three disposable roles.</p>
+                <div class="credential-grid">
+                    <code>user_a / user-a-lab-pass</code>
+                    <code>user_b / user-b-lab-pass</code>
+                    <code>admin / admin-lab-pass</code>
+                </div>
+                <a href="/login" class="button-link" target="_blank" rel="noopener">Open login page</a>
+            </article>
+        </section>
+
+        <section class="card warning">
+            <h2>Safety boundary</h2>
+            <p>This application is intentionally vulnerable. It binds to loopback only. Do not expose it through a tunnel, reverse proxy, public interface, or shared environment.</p>
+        </section>
+    </main>
+</body>
+</html>

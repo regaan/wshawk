@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
+import os
 import re
 from pathlib import Path
 
@@ -14,6 +15,7 @@ PYTHON_VERSION_FILE = REPO_ROOT / "wshawk" / "_version_info.py"
 CITATION_FILE = REPO_ROOT / "CITATION.cff"
 WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
 IGNORED_DIRS = {
+    ".cache",
     ".git",
     ".mypy_cache",
     ".pytest_cache",
@@ -21,11 +23,17 @@ IGNORED_DIRS = {
     ".wshawk",
     "__pycache__",
     "artifacts",
+    "audit-results",
     "bin",
+    "browser-runtime",
     "build",
     "dist",
+    "dist-electron-go",
+    "dist-electron-go-preview",
+    "dist-preview",
     "node_modules",
     "out",
+    "pentest-results",
     "reports",
     "venv",
 }
@@ -131,6 +139,7 @@ def check_version_consistency() -> dict:
 
     canonical = match.group(1)
     package_payload = json.loads((REPO_ROOT / "desktop" / "package.json").read_text(encoding="utf-8"))
+    electron_go_payload = json.loads((REPO_ROOT / "electron-desktop" / "package.json").read_text(encoding="utf-8"))
     extension_payload = json.loads((REPO_ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
     docker_text = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
     docker_match = re.search(r'LABEL\s+version=["\']([^"\']+)["\']', docker_text)
@@ -138,6 +147,7 @@ def check_version_consistency() -> dict:
     citation_match = re.search(r'^version:\s*["\']?([^\s"\']+)', citation_text, re.MULTILINE)
     artifacts = {
         "desktop/package.json": str(package_payload.get("version", "")),
+        "electron-desktop/package.json": str(electron_go_payload.get("version", "")),
         "extension/manifest.json": str(extension_payload.get("version", "")),
         "Dockerfile": docker_match.group(1) if docker_match else "",
         "CITATION.cff": citation_match.group(1) if citation_match else "",
@@ -168,21 +178,25 @@ def scan_unpinned_workflow_actions() -> list[dict]:
 
 def build_repro_manifest() -> dict:
     entries = []
-    for path in sorted(REPO_ROOT.rglob("*")):
-        relative = path.relative_to(REPO_ROOT)
-        if should_ignore_manifest_path(relative):
-            continue
-        if path.is_dir():
-            continue
-        if path.suffix.lower() in IGNORED_SUFFIXES:
-            continue
-        entries.append(
-            {
-                "path": str(relative),
-                "sha256": sha256_file(path),
-                "size": path.stat().st_size,
-            }
+    for current, directories, names in os.walk(REPO_ROOT, topdown=True):
+        directories[:] = sorted(
+            name
+            for name in directories
+            if name not in IGNORED_DIRS and not name.endswith(IGNORED_DIR_SUFFIXES)
         )
+        for name in sorted(names):
+            path = Path(current) / name
+            relative = path.relative_to(REPO_ROOT)
+            if should_ignore_manifest_path(relative) or path.suffix.lower() in IGNORED_SUFFIXES:
+                continue
+            entries.append(
+                {
+                    "path": str(relative),
+                    "sha256": sha256_file(path),
+                    "size": path.stat().st_size,
+                }
+            )
+    entries.sort(key=lambda entry: entry["path"])
     return {
         "entry_count": len(entries),
         "entries": entries,

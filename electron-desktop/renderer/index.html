@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'">
+    <title>WSHawk Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Welcome Overlay -->
+    <div id="welcome-modal" class="welcome-overlay">
+        <div class="welcome-card">
+            <div class="branding">
+                <img src="assets/logo.jpg" alt="WSHawk Logo" class="welcome-logo" id="fallback-logo">
+                <h2>WSHAWK Intelligence</h2>
+                <p>Advanced WebSocket Security Scanner</p>
+            </div>
+
+            <div class="actions">
+                <button id="btn-new-project" class="btn primary full-width">
+                    Create New Project
+                </button>
+                <div class="divider"><span>OR</span></div>
+                <button id="btn-open-project" class="btn secondary full-width">
+                    Open Existing Project
+                </button>
+            </div>
+            <p class="project-info text-muted text-center mt-4">Projects are saved locally as .wshawk files.</p>
+        </div>
+    </div>
+
+    <!-- Title Bar -->
+    <div class="titlebar">
+        <div class="titlebar-brand" style="display: flex; align-items: center; gap: 8px;">
+            <img src="assets/logo.jpg" alt="Logo" width="18" height="18" style="border-radius: 4px;">
+            <span>WSHAWK <span class="badge" id="mode-badge" style="margin-left: 6px;">STANDARD</span></span>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-btn" id="btn-minimize" title="Minimize">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="1" y1="5" x2="9" y2="5"></line>
+                </svg>
+            </button>
+            <button class="titlebar-btn" id="btn-maximize" title="Maximize">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="1" y="1" width="8" height="8"></rect>
+                </svg>
+            </button>
+            <button class="titlebar-btn close" id="btn-close" title="Close">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="1" y1="1" x2="9" y2="9"></line>
+                    <line x1="9" y1="1" x2="1" y2="9"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="app-layout" id="main-app" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand w-full">
+                <div style="display: flex; gap: 6px; width: 100%; justify-content: space-between; align-items: center;">
+                    <button id="btn-save-project" class="btn-icon" title="Save Project (Ctrl+S)"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; border-radius: 4px; padding: 4px; flex: 1; display: flex; justify-content: center; align-items: center; transition: all 0.2s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                    </button>
+                    <button id="btn-export-report" class="btn-icon" title="Export HTML Report"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; border-radius: 4px; padding: 4px; flex: 1; display: flex; justify-content: center; align-items: center; transition: all 0.2s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                    <button id="btn-export-json" class="btn-icon" title="Export JSON"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; font-size: 10px; font-weight: 600; font-family: var(--font-mono); border-radius: 4px; padding: 4px; flex: 1; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        JSON
+                    </button>
+                    <button id="btn-export-csv" class="btn-icon" title="Export CSV"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; font-size: 10px; font-weight: 600; font-family: var(--font-mono); border-radius: 4px; padding: 4px; flex: 1; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        CSV
+                    </button>
+                </div>
+            </div>
+
+            <nav class="nav-group custom-scroll">
+                <div class="nav-label">OVERVIEW</div>
+                <button class="nav-item active" data-target="dashboard">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9"></rect>
+                        <rect x="14" y="3" width="7" height="5"></rect>
+                        <rect x="14" y="12" width="7" height="9"></rect>
+                        <rect x="3" y="16" width="7" height="5"></rect>
+                    </svg>
+                    Dashboard
+                </button>
+
+                <button class="nav-item" data-target="scanhistory">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Scan History
+                </button>
+
+                <div id="advanced-menu" style="display: none;">
+                    <div class="nav-label mt-6">ADVANCED TOOLS</div>
+                    <button class="nav-item" data-target="history">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+                        </svg>
+                        Activity History
+                    </button>
+                    <button class="nav-item" data-target="intercept">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        Interceptor
+                    </button>
+                    <button class="nav-item" data-target="reqforge">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2v6h-6" />
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                            <path d="M3 22v-6h6" />
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                        </svg>
+                        WS Forge
+                    </button>
+                    <button class="nav-item" data-target="attacks">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2l3 7h7l-5.5 4.2L18.5 21 12 16.8 5.5 21l2-7.8L2 9h7z"></path>
+                        </svg>
+                        Attack Ops
+                    </button>
+					<button class="nav-item" data-target="findingsworkspace">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+						Findings
+					</button>
+                    <button class="nav-item" data-target="blaster">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        Payload Blaster
+                    </button>
+
+                    <div class="nav-label mt-6">UTILITIES</div>
+                    <button class="nav-item" data-target="codec">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                        Codec
+                    </button>
+                    <button class="nav-item" data-target="comparer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                        Comparer
+                    </button>
+                    <button class="nav-item" data-target="notes">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        Notes
+                    </button>
+                    <button class="nav-item" data-target="evidence">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 12l2 2 4-4"></path>
+                            <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"></path>
+                        </svg>
+                        Evidence Vault
+                    </button>
+                    <button class="nav-item" data-target="wsmap">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                            </path>
+                        </svg>
+                        Endpoint Map
+                    </button>
+                    <button class="nav-item" data-target="authbuilder">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        Auth Builder
+                    </button>
+                    <button class="nav-item" data-target="scheduler">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        Scheduler
+                    </button>
+                    <button class="nav-item" data-target="oast">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                        OAST Callbacks
+                    </button>
+                    <button class="nav-item" data-target="mutationlab">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M12 2v6m0 12v2m-6-8H2m20 0h-4M7.8 7.8L5.6 5.6m12.8 12.8l-2.2-2.2M7.8 16.2l-2.2 2.2M18.4 5.6l-2.2 2.2">
+                            </path>
+                            <circle cx="12" cy="12" r="4"></circle>
+                        </svg>
+                        Mutation Lab
+                    </button>
+                </div>
+
+                <!-- Web Pentest Section -->
+                <div id="web-menu" style="display: none;">
+                    <div class="nav-label mt-6" data-web-static-label="1">WEB PENTEST</div>
+                    <div id="web-workspace-switcher"
+                        style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 10px 0 12px;">
+                        <button class="workspace-btn web-workspace-btn active" data-web-workspace="discovery"
+                            style="margin: 0; justify-content: center;">Discovery</button>
+                        <button class="workspace-btn web-workspace-btn" data-web-workspace="requests"
+                            style="margin: 0; justify-content: center;">WS Requests</button>
+                        <button class="workspace-btn web-workspace-btn" data-web-workspace="attacks"
+                            style="margin: 0; justify-content: center;">Attacks</button>
+                        <button class="workspace-btn web-workspace-btn" data-web-workspace="evidence"
+                            style="margin: 0; justify-content: center;">Evidence</button>
+                    </div>
+                    <button class="nav-item" data-target="webworkspace">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                        Operations Board
+                    </button>
+                    <div class="nav-label mt-6">WORKSPACE TOOLS</div>
+                    <button class="nav-item" data-target="httpforge">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        </svg>
+                        HTTP Forge
+                    </button>
+                    <button class="nav-item" data-target="httpfuzzer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        HTTP Fuzzer
+                    </button>
+                    <button class="nav-item" data-target="dirscanner">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                            </path>
+                        </svg>
+                        Dir Scanner
+                    </button>
+                    <button class="nav-item" data-target="headeranalyzer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        Header Analyzer
+                    </button>
+                    <button class="nav-item" data-target="jwtanalyzer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        JWT Analyzer
+                    </button>
+                    <button class="nav-item" data-target="subdomain">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                            </path>
+                        </svg>
+                        Subdomain Finder
+                    </button>
+                    <button class="nav-item" data-target="webcrawler">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path
+                                d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94">
+                            </path>
+                        </svg>
+                        Web Crawler
+                        <span id="nav-dot-crawler" class="nav-status-dot hidden"></span>
+                    </button>
+                    <button class="nav-item" data-target="vulnscanner" style="border-left: 2px solid var(--danger);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                            </path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <span id="nav-count-vuln" class="nav-count danger hidden">0</span>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        Vuln Scanner
+                    </button>
+                    <div class="nav-label mt-6">RECON</div>
+                    <button class="nav-item" data-target="techfp">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                            <rect x="9" y="9" width="6" height="6"></rect>
+                            <line x1="9" y1="1" x2="9" y2="4"></line>
+                            <line x1="15" y1="1" x2="15" y2="4"></line>
+                            <line x1="9" y1="20" x2="9" y2="23"></line>
+                            <line x1="15" y1="20" x2="15" y2="23"></line>
+                        </svg>
+                        Tech Fingerprint
+                    </button>
+                    <button class="nav-item" data-target="sslanalyzer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        SSL/TLS Analyzer
+                    </button>
+                    <button class="nav-item" data-target="sensitivefinder">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        Sensitive Finder
+                    </button>
+                    <div class="nav-label mt-6">OFFENSIVE</div>
+                    <button class="nav-item" data-target="wafdetect">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <line x1="9" y1="12" x2="15" y2="12"></line>
+                        </svg>
+                        WAF Detector
+                    </button>
+                    <button class="nav-item" data-target="corstester">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                        </svg>
+                        CORS Tester
+                    </button>
+                    <button class="nav-item" data-target="portscanner">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
+                        Port Scanner
+                    </button>
+                    <button class="nav-item" data-target="dnslookup">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                        DNS / WHOIS
+                    </button>
+                    <div class="nav-label mt-6">EXPLOIT</div>
+                    <button class="nav-item" data-target="csrfforge">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                        CSRF Forge
+                    </button>
+                    <button class="nav-item" data-target="blindprobe">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06"></path>
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        </svg>
+                        Blind Probe
+                    </button>
+                    <button class="nav-item" data-target="redirecthunter">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 10 20 15 15 20"></polyline>
+                            <path d="M4 4v7a4 4 0 0 0 4 4h12"></path>
+                        </svg>
+                        Redirect Hunter
+                    </button>
+                    <button class="nav-item" data-target="protopolluter">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                            <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                            <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                            <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                            <line x1="3.27" y1="6.96" x2="12" y2="12.01"></line>
+                        </svg>
+                        Proto Polluter
+                    </button>
+                    <div class="nav-label mt-6">INTERCEPT</div>
+                    <button class="nav-item" data-target="hawkproxyca">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <path d="M9 12l2 2 4-4"></path>
+                        </svg>
+                        Proxy CA
+                    </button>
+                    <button class="nav-item" data-target="attackchainer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="13 17 18 12 13 7"></polyline>
+                            <polyline points="6 17 11 12 6 7"></polyline>
+                        </svg>
+                        Attack Chainer
+                    </button>
+
+                    <div class="nav-label mt-6">ORCHESTRATION</div>
+                    <button class="nav-item" data-target="cybernode">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="6" cy="6" r="3"></circle>
+                            <circle cx="18" cy="6" r="3"></circle>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="18" r="3"></circle>
+                            <line x1="9" y1="6" x2="15" y2="6"></line>
+                            <line x1="6" y1="9" x2="6" y2="15"></line>
+                            <line x1="18" y1="9" x2="18" y2="15"></line>
+                            <line x1="9" y1="18" x2="15" y2="18"></line>
+                        </svg>
+                        CyberNode
+                        <span class="badge"
+                            style="background: var(--danger); color: #fff; font-size: 8px; padding: 1px 5px; border-radius: 3px; margin-left: auto;">NEW</span>
+                    </button>
+                    <button class="nav-item" data-target="teammode">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Team Mode
+                        <span id="team-online-dot"
+                            style="display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--safe); margin-left: auto; flex-shrink: 0;"></span>
+                    </button>
+                    <div class="nav-label mt-6">PROJECT</div>
+                    <button class="nav-item" data-target="evidence">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 12l2 2 4-4"></path>
+                            <path d="M12 3l7 4v5c0 5-3.8 8.8-7 9-3.2-.2-7-4-7-9V7l7-4z"></path>
+                        </svg>
+                        Evidence Vault
+                    </button>
+                    <button class="nav-item" data-target="notes">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16l4-3 4 3 4-3 4 3V8z"></path>
+                            <line x1="8" y1="9" x2="16" y2="9"></line>
+                            <line x1="8" y1="13" x2="14" y2="13"></line>
+                        </svg>
+                        Operator Notes
+                    </button>
+                    <button class="nav-item" data-target="scanhistory">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3h18v4H3z"></path>
+                            <path d="M5 7v14h14V7"></path>
+                            <line x1="9" y1="11" x2="15" y2="11"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                        Scan History
+                    </button>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+                    <button id="session-save-btn" class="workspace-btn"
+                        style="flex: 1; font-size: 10px; padding: 5px 0;">
+                        <span>Save</span>
+                    </button>
+                    <button id="session-load-btn" class="workspace-btn"
+                        style="flex: 1; font-size: 10px; padding: 5px 0;">
+                        <span>Load</span>
+                    </button>
+                </div>
+                <button id="btn-settings" class="workspace-btn mb-12">
+                    <span>Settings</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
+                <button id="toggle-mode-btn" class="workspace-btn mb-12">
+                    <span id="btn-mode-text">Switch to Advanced</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                </button>
+                <div class="author-credit">
+                    Built by <a href="https://regaan.rothackers.com" target="_blank">Regaan</a><br>
+                    <span class="muted">Security Researcher & Founder of Rot Hackers</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Window -->
+        <main class="main-content">
+            <!-- Top Controls -->
+            <header class="topbar">
+                <div class="connection-status" id="conn-pill">
+                    <div class="indicator" id="conn-dot"></div>
+                    <span id="conn-text">Disconnected</span>
+                </div>
+
+                <div class="target-control">
+                    <div class="input-wrapper">
+                        <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="2" y1="12" x2="22" y2="12" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg>
+                        <input type="text" id="target-url" placeholder="wss://target.api.com/" autocomplete="off">
+                    </div>
+                    <div class="input-wrapper" style="width: 280px;">
+                        <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4">
+                            </path>
+                        </svg>
+                        <input type="text" id="auth-payload" placeholder="Skeleton Key (Initial Auth Payload)"
+                            autocomplete="off">
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="profile-select" title="Connection Profiles"
+                            style="background: var(--bg-panel); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 4px 8px; font-size: 12px; min-width: 120px; cursor: pointer;">
+                            <option value="">No Profile</option>
+                        </select>
+                        <button id="profile-save-btn" class="btn secondary small"
+                            style="font-size: 11px; white-space: nowrap;">Save Profile</button>
+                        <button id="profile-delete-btn" class="btn secondary small"
+                            style="font-size: 11px; color: var(--danger); white-space: nowrap;">Del</button>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="scan-stop-btn" class="btn primary"
+                            style="background: var(--danger); border-color: var(--danger); display: none;">Stop</button>
+                        <button id="scan-btn" class="btn primary">Run Analysis</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Views Container -->
+            <div class="workspace" id="workspace-views">
+
+                <!-- Dashboard -->
+
+            </div>
+
+
+            <!-- Status Bar -->
+            <div class="status-bar" id="status-bar">
+                <div class="status-segment">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span id="status-conn">Disconnected</span>
+                </div>
+                <div class="status-segment">
+                    <span id="status-timer">00:00:00</span>
+                </div>
+                <div class="status-segment">
+                    <span id="status-schedulers">0 schedulers</span>
+                </div>
+                <div class="status-segment">
+                    <span id="status-storage">Storage: --</span>
+                </div>
+                <div class="status-segment" style="margin-left: auto; color: var(--text-muted);">
+                    <span>Ctrl+K: Search &middot; Ctrl+Enter: Execute &middot; Ctrl+S: Save</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- HawkSearch Overlay (Ctrl+K) -->
+    <div class="hawksearch-overlay" id="hawksearch-overlay">
+        <div class="hawksearch-box">
+            <input type="text" class="hawksearch-input" id="hawksearch-input"
+                placeholder="Search tools, actions, or type a command...">
+            <div class="hawksearch-results" id="hawksearch-results"></div>
+            <div class="hawksearch-footer">
+                <span>↑↓ Navigate · Enter Select · Esc Close</span>
+                <span>Ctrl+K</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace Session Modal -->
+    <div id="session-dialog" class="modal-overlay" role="dialog" aria-modal="true"
+        aria-labelledby="session-dialog-title" style="display: none;">
+        <div class="modal-box" style="max-width: 460px;">
+            <div class="modal-header">
+                <h2 id="session-dialog-title">Workspace Session</h2>
+            </div>
+            <div class="modal-body">
+                <p id="session-dialog-description" style="margin: 0 0 12px; color: var(--text-muted);"></p>
+                <div id="session-dialog-name-group">
+                    <label for="session-dialog-name" style="display:block;margin-bottom:6px;">Session name</label>
+                    <input id="session-dialog-name" class="modal-input" type="text" maxlength="120"
+                        autocomplete="off">
+                </div>
+                <div id="session-dialog-list-group" style="display: none;">
+                    <label for="session-dialog-list" style="display:block;margin-bottom:6px;">Saved session</label>
+                    <select id="session-dialog-list" class="modal-input"></select>
+                </div>
+                <div id="session-dialog-error" role="alert" style="display:none;color:var(--danger);font-size:12px;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;">
+                <button id="session-dialog-cancel" class="btn secondary" type="button">Cancel</button>
+                <button id="session-dialog-confirm" class="btn primary" type="button">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Settings & Themes</h2>
+                <button id="btn-settings-close"
+                    style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <!-- Theme Selector -->
+                <h3 style="margin-bottom:10px; font-size:14px; color:var(--text-primary);">Theme</h3>
+                <div style="margin-bottom: 20px; display: flex; gap: 8px;">
+                    <button class="theme-btn btn secondary small" data-theme="" style="flex:1;">Midnight</button>
+                    <button class="theme-btn btn secondary small" data-theme="matrix"
+                        style="flex:1; color: #00ff41;">Matrix</button>
+                    <button class="theme-btn btn secondary small" data-theme="cyber-red"
+                        style="flex:1; color: #ff2222;">Cyber Red</button>
+                    <button class="theme-btn btn secondary small" data-theme="arctic"
+                        style="flex:1; color: #38bdf8;">Arctic</button>
+                </div>
+
+                <h3 style="margin-bottom:10px; font-size:14px; color:var(--text-primary);">Browser Extension Pairing</h3>
+                <div style="margin-bottom: 20px;">
+                    <button id="btn-extension-pairing-code" class="btn secondary small" type="button">Generate Pairing Code</button>
+                    <div id="extension-pairing-code" style="margin-top:10px; font-family:monospace; color:var(--primary);" aria-live="polite"></div>
+                </div>
+
+                <h3 style="margin-bottom:10px; font-size:14px; color:var(--text-primary);">Jira Integration</h3>
+                <div style="margin-bottom: 20px;">
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="cfg-jira-url" class="modal-input"
+                            placeholder="Jira URL (e.g. https://corp.atlassian.net)">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="cfg-jira-email" class="modal-input" placeholder="Jira Email">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <input type="password" id="cfg-jira-token" class="modal-input" placeholder="Jira API Token">
+                    </div>
+                    <div>
+                        <input type="text" id="cfg-jira-project" class="modal-input"
+                            placeholder="Jira Project Key (default: SEC)">
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom:10px; font-size:14px; color:var(--text-primary);">DefectDojo Integration</h3>
+                <div>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="cfg-dd-url" class="modal-input"
+                            placeholder="DefectDojo URL (e.g. http://dojo.local:8080)">
+                    </div>
+                    <div>
+                        <input type="password" id="cfg-dd-key" class="modal-input" placeholder="DefectDojo API Key">
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom:10px; font-size:14px; color:var(--primary); margin-top: 20px;">AI-Enhanced
+                    Fuzzing</h3>
+                <div style="margin-bottom: 20px;">
+                    <div style="margin-bottom: 10px;">
+                        <select id="cfg-ai-provider" class="modal-input" style="background: var(--bg-secondary);">
+                            <option value="ollama">Ollama (Local)</option>
+                            <option value="openai">OpenAI (Remote)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="cfg-ai-model" class="modal-input"
+                            placeholder="Model Name (e.g. llama3, gpt-4o)">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="cfg-ai-url" class="modal-input"
+                            placeholder="Base URL (e.g. http://localhost:11434/v1)">
+                    </div>
+                    <div>
+                        <input type="password" id="cfg-ai-key" class="modal-input"
+                            placeholder="API Key (for remote providers)">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 20px; text-align: right; border-top: 1px solid var(--border);">
+                <button id="btn-settings-save" class="btn primary">Save Integrations</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Terms and Conditions Modal -->
+    <div id="tos-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px; border: 1px solid var(--danger);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                <h2 style="color: var(--danger);">LEGAL DISCLAIMER AND TERMS OF USE</h2>
+            </div>
+            <div class="modal-body custom-scroll"
+                style="padding: 20px; max-height: 400px; overflow-y: auto; font-size: 13px; line-height: 1.6;">
+                <p><strong>WSHawk is designed exclusively for security professionals, researchers, and developers for
+                        AUTHORIZED testing only.</strong></p>
+                <h3 style="margin-top: 15px; margin-bottom: 5px; color: var(--text-primary);">1. Authorization</h3>
+                <p>You must have explicit, written permission from the system owner before scanning or interacting with
+                    any application, server, or network using WSHawk. Unauthorized usage may violate local, state,
+                    federal, or international laws.</p>
+                <h3 style="margin-top: 15px; margin-bottom: 5px; color: var(--text-primary);">2. Liability</h3>
+                <p>The author (Regaan) and associated contributors are <strong>NOT</strong> responsible for any damage,
+                    downtime, data loss, or legal consequences caused by the use or misuse of this application.</p>
+                <h3 style="margin-top: 15px; margin-bottom: 5px; color: var(--text-primary);">3. Offensive Capabilities
+                </h3>
+                <p>This tool contains live exploit payloads and weaponization features capable of compromising
+                    vulnerable systems, altering database records, and executing arbitrary code. Handle with extreme
+                    caution.</p>
+                <p style="margin-top: 20px; color: var(--warning);">By clicking "I Agree", you acknowledge that you have
+                    read this disclaimer, understand the risks, and legally accept full responsibility for your actions.
+                </p>
+            </div>
+            <div class="modal-footer"
+                style="padding: 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+                <button id="btn-agree-tos" class="btn primary" style="background: var(--danger);">I Agree &
+                    Understand</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Search Modal (Ctrl+K) -->
+    <div id="global-search-modal" class="modal-overlay"
+        style="display: none; align-items: flex-start; padding-top: 15vh;">
+        <div class="modal-box" style="max-width: 560px; max-height: 500px; display: flex; flex-direction: column;">
+            <div style="padding: 16px; border-bottom: 1px solid var(--border-color);">
+                <input type="text" id="global-search-input" placeholder="Search findings, notes, history, endpoints..."
+                    style="width: 100%; background: transparent; border: none; color: var(--text-primary); font-size: 15px; outline: none; font-family: var(--font-main);"
+                    autocomplete="off">
+            </div>
+            <div id="global-search-results" class="custom-scroll"
+                style="flex: 1; overflow-y: auto; padding: 8px; max-height: 380px;">
+                <div class="empty-state" style="padding: 20px;">Type to search across all data.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="ipc-adapter.js"></script>
+    <script src="components/view_registry.js"></script>
+    <script src="components/core_views.js"></script>
+    <script src="components/web_workspace_views.js"></script>
+    <script src="components/web_security_views.js"></script>
+    <script src="components/collaboration_views.js"></script>
+    <script src="components/mount_views.js"></script>
+    <script src="modules/state.js"></script>
+    <script src="modules/dom.js"></script>
+    <script src="modules/api.js"></script>
+    <script src="modules/identities.js"></script>
+    <script src="modules/traffic.js"></script>
+    <script src="modules/protocol.js"></script>
+    <script src="modules/attacks.js"></script>
+    <script src="modules/evidence.js"></script>
+	<script src="modules/findings_workspace.js"></script>
+    <script src="renderer.js"></script>
+    <script src="modules/attacks_ui.js"></script>
+    <script src="modules/workbench.js"></script>
+    <script src="modules/web_pentest.js"></script>
+    <script src="modules/web_workspace.js"></script>
+    <script src="modules/cyber_node.js"></script>
+    <script src="modules/team_mode.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,24 @@
+{
+  "lab": "electron-go-industry-parity",
+  "version": 2,
+  "expected": {
+    "http_findings": ["sql-injection", "xss"],
+    "active_attack_findings": ["command_injection", "path_traversal", "nosql_injection", "prototype_pollution", "xxe", "open-redirect"],
+    "header_findings_min": 3,
+    "websocket_echo": true,
+    "binary_echo": true,
+	"browser_auth_identities": ["user_a", "user_b", "admin"],
+	"secure_horizontal_authorization": true,
+	"intentional_horizontal_idor": true,
+	"vertical_authorization": true,
+	"safe_endpoint_false_positives": 0,
+	"legacy_python_same_lab": true,
+    "cancellation_recovery": true,
+    "report_formats": ["json", "html", "csv", "sarif"]
+  },
+  "limits": {
+    "max_http_p95_ms": 1000,
+    "max_websocket_roundtrip_p95_ms": 1000,
+    "max_crashes": 0
+  }
+}

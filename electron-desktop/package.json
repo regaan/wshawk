@@ -1,0 +1,75 @@
+{
+  "name": "wshawk-electron-go",
+  "version": "4.0.3",
+  "private": true,
+  "description": "WSHawk Electron desktop with a private Go backend",
+  "author": "Regaan <regaan@rothackers.com>",
+  "license": "AGPL-3.0-only",
+  "main": "main/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build:go": "node scripts/build-go.js",
+    "prepare:browser": "node scripts/prepare-browser.js",
+    "start": "npm run build:go && electron .",
+    "test": "node --test test/*.test.js",
+    "test:go": "node scripts/test-go.js",
+    "test:all": "npm test && npm run test:go && npm run build:go && npm run smoke:worker",
+    "smoke:worker": "node scripts/worker-smoke.js",
+    "smoke:electron": "node scripts/electron-smoke.js",
+    "pack": "npm run build:go && electron-builder --dir",
+    "dist:win": "npm run build:go && npm run prepare:browser && electron-builder --win nsis",
+    "dist:linux": "npm run build:go && npm run prepare:browser && electron-builder --linux AppImage deb tar.gz",
+    "dist:mac": "npm run build:go && npm run prepare:browser && electron-builder --mac dmg zip",
+    "release:notes": "node scripts/generate-release-notes.js",
+    "test:artifacts": "node scripts/verify-artifacts.js",
+    "test:lifecycle:win": "node scripts/windows-lifecycle.js",
+    "lab": "node labs/server.js",
+    "test:parity": "npm run build:go && node labs/run-parity.js",
+	"test:parity:legacy": "npm run build:go && node labs/run-parity.js --legacy",
+	"test:e2e": "npm run build:go && node scripts/e2e-electron.js",
+	"test:authorization-benchmark": "npm run build:go && node scripts/authorization-benchmark.js",
+	"audit:authorized-web": "npm run build:go && node scripts/authorized-web-audit.js",
+	"pentest:authorized-full": "npm run build:go && node scripts/full-authorized-pentest.js"
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.8.1",
+    "ws": "^8.18.3"
+  },
+  "optionalDependencies": {
+    "playwright-core": "^1.61.0"
+  },
+  "build": {
+    "appId": "com.rothackers.wshawk.electrongo",
+	"productName": "WSHawk Electron Go",
+	"artifactName": "wshawk-electron-go-${version}-${os}-${arch}.${ext}",
+	"asar": true,
+    "directories": {
+      "output": "dist-electron-go"
+    },
+    "files": [
+      "main/**/*",
+      "preload/**/*",
+      "renderer/**/*",
+      "shared/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "wshawk-worker*"
+        ]
+	  },
+	  {
+		"from": "browser-runtime",
+		"to": "playwright-browsers"
+      }
+	],
+	"win": { "target": ["nsis"], "icon": "build/icon.ico" },
+	"linux": { "target": ["AppImage", "deb", "tar.gz"], "icon": "build/icon.png", "category": "Security", "executableName": "wshawk-electron-go" },
+	"mac": { "target": ["dmg", "zip"], "icon": "build/icon.icns", "category": "public.app-category.developer-tools", "identity": null },
+	"nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "license": "LICENSE.txt" }
+  }
+}

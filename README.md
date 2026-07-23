@@ -10,7 +10,7 @@
 
 **WSHawk** is an open-source toolkit for WebSocket security testing, web application penetration testing, and stateful attack validation. It combines a CLI scanner, web dashboard, Electron desktop app, browser companion, and project-backed workflows for authorized security assessments.
 
-As of v4.0.2, WSHawk ships under the **AGPL-3.0 license** and includes the platform refactor, project-backed HTTP and WebSocket workflows, identity-aware replay and diffing, race testing, Playwright-assisted browser evidence collection for XSS testing, and local validation labs for realtime application scenarios.
+As of v4.0.3, WSHawk ships under the **AGPL-3.0 license** and includes two separately packaged desktop editions, project-backed HTTP and WebSocket workflows, identity-aware replay and authorization matrices, race testing, Playwright-assisted browser evidence collection, and local validation labs for realtime application scenarios.
 
 ## Research Paper
 
@@ -25,6 +25,7 @@ If WSHawk supports your research, please cite the preprint using either permanen
 > **Full Documentation:**
 > - 🦅 **[WSHawk v4: Complete Guide](docs/V4_COMPLETE_GUIDE.md)** — Architecture, workflows, configuration, validation, and integrations
 > - 💻 **[WSHawk Desktop v4: Full Feature Guide](docs/DESKTOP_V4_GUIDE.md)** — Desktop setup, projects, replay, interception, evidence, and web pentest workflows
+> - ⚙️ **[Electron + Go Desktop Guide](docs/ELECTRON_GO_DESKTOP.md)** — Bridge-free architecture, installation, authorization matrices, findings, lab use, and native packages
 
 ---
 
@@ -41,16 +42,31 @@ If WSHawk supports your research, please cite the preprint using either permanen
 - **CVSS v3.1 scoring** for scanner findings and generated reports
 - **Integrations** — Jira, DefectDojo, and webhook notifications
 - **Reporting and exports** — HTML, JSON, Markdown, PDF, CSV, and SARIF outputs across the platform
-- **Cross-platform desktop app** — Electron + Python hybrid for Linux, Windows, and macOS
+- **Two cross-platform desktop editions** — the established Electron + Python application and the separate Electron + Go application for Linux, Windows, and macOS
 
 ---
 
 ## ⚡ Performance & Adoption Benchmarks
 
-- **Current release**: `v4.0.2`
+- **Current release**: `v4.0.3`
 - **Interfaces**: CLI, web dashboard, desktop app, and browser companion
 - **Validation coverage**: `full_stack_realtime_saas`, `socketio_saas`, and `graphql_subscriptions_lab`
 - **Primary focus**: authenticated, stateful, and asynchronous web application testing rather than passive HTTP-only scanning
+
+---
+
+## Desktop Editions
+
+WSHawk 4.0.3 publishes two independent desktop releases from the same source
+revision:
+
+| Edition | Backend | GitHub release tag | Documentation |
+| --- | --- | --- | --- |
+| **WSHawk** | Electron with the Python sidecar | [`v4.0.3`](https://github.com/regaan/wshawk/releases/tag/v4.0.3) | [Classic desktop guide](docs/DESKTOP_V4_GUIDE.md) |
+| **WSHawk Electron + Go** | Electron with a private Go worker over stdio IPC | [`electron-go-v4.0.3`](https://github.com/regaan/wshawk/releases/tag/electron-go-v4.0.3) | [Electron + Go guide](docs/ELECTRON_GO_DESKTOP.md) |
+
+The applications have separate IDs and data directories. Installing the
+Electron + Go edition does not replace the classic desktop.
 
 ---
 
@@ -152,6 +168,20 @@ A native Electron + Python desktop application with three operating modes:
 **Builds for:** Linux (.pacman, .AppImage, .deb) · Windows (.exe NSIS installer) · macOS (.dmg)
 
 **[Full Desktop Documentation →](docs/DESKTOP_V4_GUIDE.md)**
+
+---
+
+## WSHawk Electron + Go Desktop
+
+The Electron + Go edition replaces the localhost bridge with a private,
+versioned stdio JSON-RPC worker. It includes encrypted project storage,
+componentized HTTP and WebSocket workspaces, Playwright auth recording,
+multi-identity authorization matrices, safe write rollback, a dedicated
+Findings workspace, reports, and the repository-owned security lab.
+
+**Builds for:** Linux (AppImage, .deb, .tar.gz) · Windows (.exe NSIS installer) · macOS (.dmg, .zip)
+
+**[Electron + Go Desktop Documentation →](docs/ELECTRON_GO_DESKTOP.md)**
 
 ---
 
@@ -352,6 +382,7 @@ See [Defensive Validation Guide](docs/DEFENSIVE_VALIDATION.md).
 
 | Guide | Description |
 |---|---|
+| **[Electron + Go Desktop Guide](docs/ELECTRON_GO_DESKTOP.md)** | Bridge-free desktop installation, workspaces, authorization testing, local lab, and packages |
 | **[💻 Desktop v4 Full Feature Guide](docs/DESKTOP_V4_GUIDE.md)** | Current desktop guide for projects, replay, interception, web pentest workflows, and evidence |
 | **[🦅 WSHawk v4 Complete Guide](docs/V4_COMPLETE_GUIDE.md)** | Current v4 architecture, workflows, configuration, validation, and integrations |
 | [Getting Started](docs/getting_started.md) | First scan, output format, common use cases |
@@ -392,18 +423,18 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**WSHawk v4.0.2** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
+**WSHawk v4.0.3** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
 
 ---
 
-### Latest Updates (v4.0.2)
-- **Secure Local Boundaries**: Secret storage fails closed, browser-companion pairing requires desktop approval, and remote dashboard access requires explicit authentication.
-- **Release Gates**: Python 3.10–3.13, all desktop platforms, dependency audits, wheel inspection, and release security checks are mandatory in CI.
-- **Packaging Cleanup**: `pyproject.toml` and `wshawk/_version_info.py` are the dependency and version authorities; release wheels exclude repository-only files.
-- **Platform Refactor**: The runtime is split into daemon, transport, session, protocol, attacks, evidence, and store layers for cleaner project-backed workflows.
-- **Project-Backed Operations**: HTTP and WebSocket replay, AuthZ diffing, race testing, captured identities, and evidence now live in the same local project record.
-- **Browser Companion Pairing**: The extension uses session pairing and explicit capture scopes for WebSocket handshake ingestion.
-- **Tamper-Evident Exports**: Project bundle exports include provenance and integrity metadata for later verification.
-- **Validation Labs**: Local scenarios cover full-stack realtime SaaS, Socket.IO, GraphQL subscriptions, deterministic web and raw WebSocket attack engines, and a paired vulnerable/hardened industry controls benchmark. A standalone 26-case HTTP/WebSocket target is ready for the desktop end-to-end automation layer. Engine warm-up, percentile, threshold, and CI reports are available through `python -m benchmarks.run`.
+### Latest Updates (v4.0.3)
+
+- **Electron + Go edition:** separate Windows, Linux, and macOS packages with a private Go worker and no localhost bridge.
+- **Authorization workspace:** anonymous and multi-identity matrices, object discovery, explicit policies, GraphQL and WebSocket authorization, semantic response analysis, and multi-object confirmation.
+- **Safe write validation:** dry-run, confirmation, bounded execution, before/after evidence, cleanup, and verified rollback.
+- **Protected evidence:** AES-256-GCM project storage, OS-protected key handoff, redaction, hash-only retention, reproducible requests, and controlled reveal/copy.
+- **Findings lifecycle:** duplicate consolidation, severity and confidence editing, selected export, and five automated retest outcomes.
+- **Owned lab:** 34 secure/vulnerable authorization scenarios covering multi-tenancy, UUIDs, nested objects, query and JSON identifiers, GraphQL, WebSocket rooms/subscriptions, mass assignment, and state-changing IDOR.
+- **Dual GitHub releases:** one `v4.0.3` push publishes the classic WSHawk release and the separate `electron-go-v4.0.3` release.
 
 *Built for security professionals, by Regaan.*

@@ -36,7 +36,7 @@ class ReleaseDesktopArtifactsTests(unittest.TestCase):
     def test_index_artifacts_requires_and_indexes_each_linux_format(self):
         with tempfile.TemporaryDirectory() as directory:
             dist = Path(directory)
-            for name in ("wshawk-4.0.2.AppImage", "wshawk-4.0.2.deb", "wshawk-4.0.2.pacman"):
+            for name in ("wshawk-4.0.3.AppImage", "wshawk-4.0.3.deb", "wshawk-4.0.3.pacman"):
                 (dist / name).write_bytes(name.encode("utf-8"))
             summary = dist / "summary.md"
 
@@ -46,17 +46,17 @@ class ReleaseDesktopArtifactsTests(unittest.TestCase):
             self.assertEqual(len(manifest.read_text(encoding="utf-8").splitlines()), 3)
             summary_text = summary.read_text(encoding="utf-8")
             self.assertIn("WSHawk Linux installers", summary_text)
-            self.assertIn("wshawk-4.0.2.AppImage", summary_text)
+            self.assertIn("wshawk-4.0.3.AppImage", summary_text)
 
     def test_release_notes_include_installers_checksums_research_and_changelog(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             artifacts = root / "artifacts"
             names = {
-                "Windows": "WSHawk Setup 4.0.2.exe",
-                "Linux": "wshawk-4.0.2.AppImage",
-                "macOS": "WSHawk-4.0.2.dmg",
-                "Python": "wshawk-4.0.2-py3-none-any.whl",
+                "Windows": "WSHawk Setup 4.0.3.exe",
+                "Linux": "wshawk-4.0.3.AppImage",
+                "macOS": "WSHawk-4.0.3.dmg",
+                "Python": "wshawk-4.0.3-py3-none-any.whl",
             }
             for platform, name in names.items():
                 platform_dir = artifacts / platform
@@ -65,21 +65,21 @@ class ReleaseDesktopArtifactsTests(unittest.TestCase):
 
             changelog = root / "CHANGELOG.md"
             changelog.write_text(
-                "## [4.0.2] - 2026-07-17\n\n### Added\n- Release automation.\n\n## [4.0.1]\n",
+                "## [4.0.3] - 2026-07-23\n\n### Added\n- Release automation.\n\n## [4.0.2]\n",
                 encoding="utf-8",
             )
             output = root / "release-notes.md"
 
             manifest = generate_release_notes(
                 artifacts,
-                "v4.0.2",
+                "v4.0.3",
                 "regaan/wshawk",
                 changelog,
                 output,
             )
 
             notes = output.read_text(encoding="utf-8")
-            self.assertIn("WSHawk%20Setup%204.0.2.exe", notes)
+            self.assertIn("WSHawk%20Setup%204.0.3.exe", notes)
             self.assertIn("Zenodo preprint", notes)
             self.assertIn("Figshare preprint", notes)
             self.assertIn("Release automation.", notes)

@@ -1,0 +1,13 @@
+node_modules/
+bin/
+dist/
+out/
+coverage/
+.cache/
+test-data/
+audit-results/
+pentest-results/
+browser-runtime/
+dist-preview/
+dist-electron-go/
+*.log

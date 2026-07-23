@@ -1,6 +1,6 @@
 # WSHawk Desktop v4 — Full Feature Guide
 
-> **Version 4.0.2** · Author: Regaan ([@regaan](https://github.com/regaan))
+> **Version 4.0.3** · Author: Regaan ([@regaan](https://github.com/regaan))
 > Practical guide for using the WSHawk desktop app for WebSocket testing, web pentesting, replay, AuthZ diffing, race testing, and evidence collection.
 
 ---
