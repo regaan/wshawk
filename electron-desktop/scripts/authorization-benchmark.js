@@ -48,6 +48,7 @@ function findingsMarkdown(findings, generatedAt) {
 	const application = await electron.launch({ args: [root], env: isolatedElectronEnvironment(dataDir) });
 	try {
 		const window = await firstWindowWithDiagnostics(application); await window.waitForLoadState('domcontentloaded'); await window.waitForTimeout(150);
+		window.setDefaultTimeout(600_000);
 		const benchmark = await window.evaluate(async ({ labURL, labWS }) => {
 			const request = async (url, init = {}) => { const response = await window.ipcRequest(url, init); const data = await response.json(); if (!response.ok) throw new Error(data.detail || `${url} failed (${response.status})`); return data; };
 			const project = (await request('/platform/projects', { method: 'POST', body: JSON.stringify({ name: 'Authorization benchmark', url: labURL, metadata: { owned_lab: true } }) })).project;

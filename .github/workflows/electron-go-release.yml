@@ -19,6 +19,7 @@ jobs:
   test:
     name: Test Electron + Go
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: electron-desktop
@@ -66,6 +67,7 @@ jobs:
         run: xvfb-run --auto-servernum npm run test:e2e
 
       - name: Run the authorization benchmark
+        timeout-minutes: 15
         run: npm run test:authorization-benchmark
 
   package:
