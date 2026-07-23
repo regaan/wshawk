@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { _electron: electron } = require('playwright-core');
+const { firstWindowWithDiagnostics, isolatedElectronEnvironment } = require('./electron-harness');
 
 const root = path.resolve(__dirname, '..');
 const authorizationPhrase = 'I_OWN_OR_AM_AUTHORIZED';
@@ -89,12 +90,12 @@ async function activateView(window, targetName) {
 	const dataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'wshawk-authorized-audit-'));
 	const application = await electron.launch({
 		args: [root],
-		env: { ...process.env, WSHAWK_ELECTRON_GO_DATA_DIR: dataDirectory },
+		env: isolatedElectronEnvironment(dataDirectory),
 	});
 	const modules = [];
 	let projectId = '';
 	try {
-		const window = await application.firstWindow();
+		const window = await firstWindowWithDiagnostics(application);
 		await window.waitForLoadState('domcontentloaded');
 		if ((await window.title()) !== 'WSHawk Intelligence') throw new Error('The full WSHawk interface did not load.');
 		if (await window.locator('#btn-agree-tos').isVisible()) await window.locator('#btn-agree-tos').click();

@@ -10,7 +10,7 @@
 
 **WSHawk** is an open-source toolkit for WebSocket security testing, web application penetration testing, and stateful attack validation. It combines a CLI scanner, web dashboard, Electron desktop app, browser companion, and project-backed workflows for authorized security assessments.
 
-As of v4.0.3, WSHawk ships under the **AGPL-3.0 license** and includes two separately packaged desktop editions, project-backed HTTP and WebSocket workflows, identity-aware replay and authorization matrices, race testing, Playwright-assisted browser evidence collection, and local validation labs for realtime application scenarios.
+As of v4.0.4, WSHawk ships under the **AGPL-3.0 license** and includes two separately packaged desktop editions, project-backed HTTP and WebSocket workflows, identity-aware replay and authorization matrices, race testing, Playwright-assisted browser evidence collection, and local validation labs for realtime application scenarios.
 
 ## Research Paper
 
@@ -48,7 +48,7 @@ If WSHawk supports your research, please cite the preprint using either permanen
 
 ## ⚡ Performance & Adoption Benchmarks
 
-- **Current release**: `v4.0.3`
+- **Current release**: `v4.0.4`
 - **Interfaces**: CLI, web dashboard, desktop app, and browser companion
 - **Validation coverage**: `full_stack_realtime_saas`, `socketio_saas`, and `graphql_subscriptions_lab`
 - **Primary focus**: authenticated, stateful, and asynchronous web application testing rather than passive HTTP-only scanning
@@ -57,13 +57,13 @@ If WSHawk supports your research, please cite the preprint using either permanen
 
 ## Desktop Editions
 
-WSHawk 4.0.3 publishes two independent desktop releases from the same source
+WSHawk 4.0.4 publishes two independent desktop releases from the same source
 revision:
 
 | Edition | Backend | GitHub release tag | Documentation |
 | --- | --- | --- | --- |
-| **WSHawk** | Electron with the Python sidecar | [`v4.0.3`](https://github.com/regaan/wshawk/releases/tag/v4.0.3) | [Classic desktop guide](docs/DESKTOP_V4_GUIDE.md) |
-| **WSHawk Electron + Go** | Electron with a private Go worker over stdio IPC | [`electron-go-v4.0.3`](https://github.com/regaan/wshawk/releases/tag/electron-go-v4.0.3) | [Electron + Go guide](docs/ELECTRON_GO_DESKTOP.md) |
+| **WSHawk** | Electron with the Python sidecar | [`v4.0.4`](https://github.com/regaan/wshawk/releases/tag/v4.0.4) | [Classic desktop guide](docs/DESKTOP_V4_GUIDE.md) |
+| **WSHawk Electron + Go** | Electron with a private Go worker over stdio IPC | [`electron-go-v4.0.4`](https://github.com/regaan/wshawk/releases/tag/electron-go-v4.0.4) | [Electron + Go guide](docs/ELECTRON_GO_DESKTOP.md) |
 
 The applications have separate IDs and data directories. Installing the
 Electron + Go edition does not replace the classic desktop.
@@ -423,11 +423,11 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**WSHawk v4.0.3** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
+**WSHawk v4.0.4** — WebSocket Security Testing, Interception, and Web Pentest Toolkit
 
 ---
 
-### Latest Updates (v4.0.3)
+### Latest Updates (v4.0.4)
 
 - **Electron + Go edition:** separate Windows, Linux, and macOS packages with a private Go worker and no localhost bridge.
 - **Authorization workspace:** anonymous and multi-identity matrices, object discovery, explicit policies, GraphQL and WebSocket authorization, semantic response analysis, and multi-object confirmation.
@@ -435,6 +435,7 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Protected evidence:** AES-256-GCM project storage, OS-protected key handoff, redaction, hash-only retention, reproducible requests, and controlled reveal/copy.
 - **Findings lifecycle:** duplicate consolidation, severity and confidence editing, selected export, and five automated retest outcomes.
 - **Owned lab:** 34 secure/vulnerable authorization scenarios covering multi-tenancy, UUIDs, nested objects, query and JSON identifiers, GraphQL, WebSocket rooms/subscriptions, mass assignment, and state-changing IDOR.
-- **Dual GitHub releases:** one `v4.0.3` push publishes the classic WSHawk release and the separate `electron-go-v4.0.3` release.
+- **Reliable Linux CI startup:** Electron test harnesses use an ephemeral encryption key when a headless runner has no desktop keyring and preserve production fail-closed behavior.
+- **Dual GitHub releases:** one `v4.0.4` push publishes the classic WSHawk release and the separate `electron-go-v4.0.4` release.
 
 *Built for security professionals, by Regaan.*

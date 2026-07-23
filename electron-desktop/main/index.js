@@ -225,6 +225,9 @@ app.whenReady().then(async () => {
         const timeout = setTimeout(() => runSmokeGate('timeout'), 12_000);
         timeout.unref?.();
     }
+}).catch((error) => {
+    console.error(`[Main] Electron startup failed: ${error.stack || error.message}`);
+    app.exit(1);
 });
 
 app.on('before-quit', (event) => {

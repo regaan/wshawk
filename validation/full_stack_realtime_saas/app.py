@@ -31,7 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 
 
-APP_VERSION = "4.0.3"
+APP_VERSION = "4.0.4"
 SESSION_COOKIE = "wshawk_validation_session"
 CSRF_COOKIE = "wshawk_validation_csrf"
 

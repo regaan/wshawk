@@ -1,6 +1,6 @@
 # Attack Implementation Audit and Benchmarks
 
-This document records the local source audit and deterministic attack-engine benchmarks for WSHawk 4.0.3. The benchmark targets bind only to `127.0.0.1` and are intentionally vulnerable. They must not be exposed to another network.
+This document records the local source audit and deterministic attack-engine benchmarks for WSHawk 4.0.4. The benchmark targets bind only to `127.0.0.1` and are intentionally vulnerable. They must not be exposed to another network.
 
 ## Run the Benchmarks
 

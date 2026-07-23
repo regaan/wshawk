@@ -1,6 +1,6 @@
 # WSHawk Electron + Go Desktop
 
-Version 4.0.3 introduces a second desktop edition built around a private Go
+Version 4.0.4 includes a second desktop edition built around a private Go
 worker. It is released separately from the classic Electron + Python desktop so
 both applications can be installed and evaluated independently.
 
@@ -8,8 +8,8 @@ both applications can be installed and evaluated independently.
 
 | Edition | Backend | Release tag | Recommended use |
 | --- | --- | --- | --- |
-| WSHawk | Python sidecar and project services | `v4.0.3` | Existing desktop workflows, CLI integration, and compatibility |
-| WSHawk Electron + Go | Private Go process over stdio JSON-RPC | `electron-go-v4.0.3` | Bridge-free desktop operation, bounded native scanning, and isolated evaluation |
+| WSHawk | Python sidecar and project services | `v4.0.4` | Existing desktop workflows, CLI integration, and compatibility |
+| WSHawk Electron + Go | Private Go process over stdio JSON-RPC | `electron-go-v4.0.4` | Bridge-free desktop operation, bounded native scanning, and isolated evaluation |
 
 The editions use different application identifiers and data directories. An
 Electron + Go project does not overwrite a classic desktop project.
@@ -37,7 +37,7 @@ versioned IPC allowlist.
 
 ## Install
 
-Open the GitHub release named **WSHawk Electron + Go v4.0.3** and download the
+Open the GitHub release named **WSHawk Electron + Go v4.0.4** and download the
 package for the target system:
 
 - Windows: NSIS `.exe`
@@ -187,10 +187,3 @@ npm run dist:mac
 
 Only the command matching the host operating system should be run locally.
 GitHub Actions builds all platforms on their native runners.
-
-## Data and release compatibility
-
-The classic and Electron + Go editions share the WSHawk 4.0.3 product version
-but publish separate GitHub releases. Their application identifiers, packaged
-workers, and data directories remain separate. Export a project bundle before
-moving evidence between machines or editions.

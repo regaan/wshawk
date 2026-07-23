@@ -1,5 +1,18 @@
 All notable changes to WSHawk will be documented in this file.
 
+## [4.0.4] - 2026-07-23
+
+### Fixed
+
+- **Headless Linux Electron Startup** — Test and audit harnesses now provide an ephemeral encrypted-project key when no desktop keyring is available, while production startup continues to fail closed without secure key storage.
+- **Electron CI Diagnostics** — First-window failures now report the Electron process state, standard error, and standard output instead of ending with an unexplained Playwright timeout.
+- **Dual Desktop Publication** — The Electron + Go release pipeline can complete its test gate and publish native Windows, Linux, and macOS packages under `electron-go-v4.0.4` alongside the classic `v4.0.4` release.
+
+### Changed
+
+- **Startup Error Handling** — Fatal Electron initialization errors are logged and terminate with a non-zero exit status.
+- **Version Synchronization** — Updated Python, both desktop editions, the extension, Docker metadata, citation metadata, validation labs, evidence, and release documentation to 4.0.4.
+
 ## [4.0.3] - 2026-07-23
 
 ### Added

@@ -13,18 +13,18 @@ test('release assembler requires complete native package coverage', () => {
     const artifacts = path.join(root, 'artifacts');
     const output = path.join(root, 'output');
     const packageNames = [
-        'wshawk-electron-go-4.0.3-win-x64.exe',
-        'wshawk-electron-go-4.0.3-linux-x86_64.AppImage',
-        'wshawk-electron-go-4.0.3-linux-amd64.deb',
-        'wshawk-electron-go-4.0.3-linux-x64.tar.gz',
-        'wshawk-electron-go-4.0.3-mac-arm64.dmg',
-        'wshawk-electron-go-4.0.3-mac-arm64.zip',
+        'wshawk-electron-go-4.0.4-win-x64.exe',
+        'wshawk-electron-go-4.0.4-linux-x86_64.AppImage',
+        'wshawk-electron-go-4.0.4-linux-amd64.deb',
+        'wshawk-electron-go-4.0.4-linux-x64.tar.gz',
+        'wshawk-electron-go-4.0.4-mac-arm64.dmg',
+        'wshawk-electron-go-4.0.4-mac-arm64.zip',
     ];
     fs.mkdirSync(path.join(artifacts, 'native'), { recursive: true });
     for (const name of packageNames) fs.writeFileSync(path.join(artifacts, 'native', name), name, 'utf8');
 
-    const result = assembleRelease({ artifacts, output, tag: 'v4.0.3', repository: 'owner/wshawk' });
-    assert.strictEqual(result.releaseTag, 'electron-go-v4.0.3');
+    const result = assembleRelease({ artifacts, output, tag: 'v4.0.4', repository: 'owner/wshawk' });
+    assert.strictEqual(result.releaseTag, 'electron-go-v4.0.4');
     assert.strictEqual(result.packages.length, packageNames.length);
     for (const name of packageNames) assert.match(result.notes, new RegExp(name.replaceAll('.', '\\.')));
 
@@ -34,7 +34,7 @@ test('release assembler requires complete native package coverage', () => {
 });
 
 test('release helpers reject incomplete arguments and identify platforms', () => {
-    assert.throws(() => parseArguments(['--tag', 'v4.0.3']), /Missing --artifacts/);
+    assert.throws(() => parseArguments(['--tag', 'v4.0.4']), /Missing --artifacts/);
     assert.strictEqual(platformFor('wshawk.exe'), 'Windows');
     assert.strictEqual(platformFor('wshawk.AppImage'), 'Linux');
     assert.strictEqual(platformFor('wshawk.dmg'), 'macOS');

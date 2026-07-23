@@ -4,9 +4,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const { isolatedElectronEnvironment } = require('./electron-harness');
 
 const projectRoot = path.resolve(__dirname, '..');
 const outputPath = path.join(os.tmpdir(), `wshawk-direct-ipc-smoke-${process.pid}.json`);
+const dataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'wshawk-direct-ipc-smoke-data-'));
 
 function electronExecutable() {
     try {
@@ -28,11 +30,10 @@ async function main() {
     }
     const child = spawn(executable, [projectRoot], {
         cwd: projectRoot,
-        env: {
-            ...process.env,
+        env: isolatedElectronEnvironment(dataDirectory, {
             WSHAWK_DIRECT_SMOKE: '1',
             WSHAWK_DIRECT_SMOKE_OUT: outputPath,
-        },
+        }),
         shell: false,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
@@ -56,6 +57,7 @@ async function main() {
     }
     const snapshot = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
     fs.unlinkSync(outputPath);
+    fs.rmSync(dataDirectory, { recursive: true, force: true });
     if (!snapshot.ok) {
         throw new Error(`Electron smoke gate failed: ${JSON.stringify(snapshot)}`);
     }
@@ -66,6 +68,7 @@ async function main() {
 }
 
 main().catch((error) => {
+    if (fs.existsSync(dataDirectory)) fs.rmSync(dataDirectory, { recursive: true, force: true });
     process.stderr.write(`${error.stack || error.message}\n`);
     process.exitCode = 1;
 });

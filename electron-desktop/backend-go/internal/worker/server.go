@@ -23,7 +23,7 @@ import (
 	"github.com/regaan/wshawk/electron-desktop/backend-go/internal/wsengine"
 )
 
-const backendVersion = "4.0.3"
+const backendVersion = "4.0.4"
 
 type Handler func(json.RawMessage) (any, *protocol.RPCError)
 

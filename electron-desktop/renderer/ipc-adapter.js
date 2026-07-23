@@ -550,7 +550,7 @@
 			owner_control: { id: ownerIdentity.id, alias: ownerIdentity.alias },
 			identity_expiration: results.map(item => ({ identity_id: item.identity_id || 'anonymous', alias: item.identity_alias, state: item.semantic?.state, expired: item.semantic?.state === 'unauthenticated' })),
 			evidence_mode: evidenceMode, results, recipe, tested_at: testedAt,
-			wshawk_version: '4.0.3', target_fingerprint: targetFingerprint,
+			wshawk_version: '4.0.4', target_fingerprint: targetFingerprint,
 			replay_instructions: 'Refresh stored identities, open HTTP Forge, load the sanitized request, then run the saved authorization matrix recipe.',
 			curl_reproduction: sanitizedCurl(sanitizeAuthorizationTemplate(template, 'redacted')),
 			screenshot,
@@ -570,7 +570,7 @@
 				lifecycle_status: lifecycleStatus, lifecycle_history: lifecycleHistory,
 				first_seen: existingFinding?.metadata?.first_seen || testedAt, last_tested: testedAt,
 				response_hashes: results.map(item => item.response.sha256).filter(Boolean),
-				target_fingerprint: targetFingerprint, wshawk_version: '4.0.3',
+				target_fingerprint: targetFingerprint, wshawk_version: '4.0.4',
 				last_retest_classification: retestClassification || existingFinding?.metadata?.last_retest_classification || '',
 			};
 			const saved = await saveAuthorizationFinding(projectId, evidence, metadata, existingFinding, { max_findings: recipe.retention_max_findings, days: recipe.retention_days });
@@ -782,7 +782,7 @@
 			const recipe = { version: 2, url: body.url, payload: body.payload, identity_ids: identityIds, primary_identity_id: primaryId, owner_identity_id: ownerId, policy_mode: body.policy_mode || 'primary_denied_owner_allowed', object_field: field, object_values: objectValues, minimum_confirmations: minimum, include_anonymous: body.include_anonymous !== false, timeout: body.timeout || 10, evidence_mode: evidenceMode };
 			let finding = null;
 			if (evaluation.finding) {
-				const evidence = { version: 3, type: 'websocket-authorization', subtype: profile.type, title: `WebSocket ${profile.title}`, endpoint: body.url, policy: evaluation, results: evidenceResults, recipe, tested_at: testedAt, wshawk_version: '4.0.3', target_fingerprint: await sha256Text(body.url), replay_instructions: 'Replay this bounded WebSocket identity/object matrix after refreshing the stored sessions.' };
+				const evidence = { version: 3, type: 'websocket-authorization', subtype: profile.type, title: `WebSocket ${profile.title}`, endpoint: body.url, policy: evaluation, results: evidenceResults, recipe, tested_at: testedAt, wshawk_version: '4.0.4', target_fingerprint: await sha256Text(body.url), replay_instructions: 'Replay this bounded WebSocket identity/object matrix after refreshing the stored sessions.' };
 				const primary = identities.find(item => item.id === primaryId); const owner = identities.find(item => item.id === ownerId);
 				const metadata = { type: 'websocket-authorization', subtype: profile.type, title: evidence.title, category: 'authorization', description: evaluation.detail, severity: String(evaluation.severity).toUpperCase(), confidence: evaluation.confidence, url: body.url, policy_mode: evaluation.mode, attacker_identity_id: primaryId, attacker_alias: primary?.alias, owner_identity_id: ownerId, owner_alias: owner?.alias, lifecycle_status: 'open', first_seen: testedAt, last_tested: testedAt, response_hashes: evidenceResults.map(item => item.sha256) };
 				const saved = await saveAuthorizationFinding(projectId, evidence, metadata, null, { max_findings: body.retention_max_findings, days: body.retention_days }); finding = { id: saved.item.id, ...evidence };

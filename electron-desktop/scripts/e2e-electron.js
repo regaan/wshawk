@@ -6,6 +6,7 @@ const os = require('os');
 const readline = require('readline');
 const { spawn } = require('child_process');
 const { _electron: electron } = require('playwright-core');
+const { firstWindowWithDiagnostics, isolatedElectronEnvironment } = require('./electron-harness');
 
 const root = path.resolve(__dirname, '..');
 
@@ -23,9 +24,9 @@ async function startLab() {
 (async () => {
 	const lab = await startLab();
 	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wshawk-electron-e2e-'));
-	const application = await electron.launch({ args: [root], env: { ...process.env, WSHAWK_ELECTRON_GO_DATA_DIR: dataDir } });
+	const application = await electron.launch({ args: [root], env: isolatedElectronEnvironment(dataDir) });
     try {
-        const window = await application.firstWindow();
+        const window = await firstWindowWithDiagnostics(application);
 		const rendererErrors = [];
 		window.on('pageerror', error => rendererErrors.push(error.stack || error.message));
 		await window.reload();

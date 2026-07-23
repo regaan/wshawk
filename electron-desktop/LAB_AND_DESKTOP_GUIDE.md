@@ -1,4 +1,4 @@
-# WSHawk Electron + Go 4.0.3 Operator Guide
+# WSHawk Electron + Go 4.0.4 Operator Guide
 
 This guide covers the Electron + Go desktop edition and its local security
 lab. The application uses a sandboxed Electron renderer and a private Go worker
@@ -11,7 +11,7 @@ authorization.
 ## Install a packaged build
 
 Packaged Electron + Go builds are published in the GitHub release named
-`WSHawk Electron + Go v4.0.3`. This release is separate from the classic
+`WSHawk Electron + Go v4.0.4`. This release is separate from the classic
 WSHawk desktop release.
 
 Choose the package for the host operating system:
@@ -304,4 +304,4 @@ Generated packages are written to `dist-electron-go/`.
 | Worker fails to start | Run `npm run build:go` and `npm run smoke:worker` |
 | Lab request fails | Confirm the printed port and keep the lab terminal running |
 | Stored identity returns 401 | Re-record the login and store the replacement identity |
-| Installed app lacks new controls | Install the Electron + Go 4.0.3 release or run the current source |
+| Installed app lacks new controls | Install the Electron + Go 4.0.4 release or run the current source |

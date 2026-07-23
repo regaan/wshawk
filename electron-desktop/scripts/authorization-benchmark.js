@@ -6,6 +6,7 @@ const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
 const { _electron: electron } = require('playwright-core');
+const { firstWindowWithDiagnostics, isolatedElectronEnvironment } = require('./electron-harness');
 
 const root = path.resolve(__dirname, '..');
 
@@ -44,9 +45,9 @@ function findingsMarkdown(findings, generatedAt) {
 (async () => {
 	const lab = await startLab();
 	const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wshawk-authz-benchmark-'));
-	const application = await electron.launch({ args: [root], env: { ...process.env, WSHAWK_ELECTRON_GO_DATA_DIR: dataDir } });
+	const application = await electron.launch({ args: [root], env: isolatedElectronEnvironment(dataDir) });
 	try {
-		const window = await application.firstWindow(); await window.waitForLoadState('domcontentloaded'); await window.waitForTimeout(150);
+		const window = await firstWindowWithDiagnostics(application); await window.waitForLoadState('domcontentloaded'); await window.waitForTimeout(150);
 		const benchmark = await window.evaluate(async ({ labURL, labWS }) => {
 			const request = async (url, init = {}) => { const response = await window.ipcRequest(url, init); const data = await response.json(); if (!response.ok) throw new Error(data.detail || `${url} failed (${response.status})`); return data; };
 			const project = (await request('/platform/projects', { method: 'POST', body: JSON.stringify({ name: 'Authorization benchmark', url: labURL, metadata: { owned_lab: true } }) })).project;

@@ -16,6 +16,20 @@ test('Electron window keeps sandbox and context isolation enabled', () => {
     assert.match(source, /sandbox:\s*true/);
     assert.match(source, /setPermissionRequestHandler/);
     assert.match(source, /setWindowOpenHandler/);
+	assert.match(source, /Electron startup failed/);
+});
+
+test('headless Electron harness supplies an ephemeral project key and startup diagnostics', () => {
+	const harness = read('scripts/electron-harness.js');
+	const e2e = read('scripts/e2e-electron.js');
+	const benchmark = read('scripts/authorization-benchmark.js');
+	assert.match(harness, /crypto\.randomBytes\(32\)/);
+	assert.match(harness, /WSHAWK_STORAGE_KEY/);
+	assert.match(harness, /Electron stderr/);
+	assert.match(harness, /firstWindow\(\{ timeout \}\)/);
+	assert.match(e2e, /isolatedElectronEnvironment\(dataDir\)/);
+	assert.match(e2e, /firstWindowWithDiagnostics\(application\)/);
+	assert.match(benchmark, /isolatedElectronEnvironment\(dataDir\)/);
 });
 
 test('renderer CSP forbids network connections and inline scripts', () => {
