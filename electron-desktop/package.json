@@ -4,6 +4,7 @@
   "private": true,
   "description": "WSHawk Electron desktop with a private Go backend",
   "author": "Regaan <regaan@rothackers.com>",
+  "homepage": "https://github.com/regaan/wshawk",
   "license": "AGPL-3.0-only",
   "main": "main/index.js",
   "type": "commonjs",
