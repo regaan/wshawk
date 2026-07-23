@@ -91,11 +91,11 @@ jobs:
 
       - name: Audit production dependencies
         working-directory: desktop
-        run: npm audit --omit=dev --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=moderate || (sleep 5 && npm audit --omit=dev --audit-level=moderate)
 
       - name: Audit complete dependency tree
         working-directory: desktop
-        run: npm audit --audit-level=moderate
+        run: npm audit --audit-level=moderate || (sleep 5 && npm audit --audit-level=moderate)
 
       - name: Smoke test desktop on Linux
         if: runner.os == 'Linux'
