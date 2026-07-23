@@ -68,7 +68,7 @@ jobs:
 
       - name: Run the authorization benchmark
         timeout-minutes: 15
-        run: npm run test:authorization-benchmark
+        run: xvfb-run --auto-servernum npm run test:authorization-benchmark
 
   package:
     name: Package ${{ matrix.label }}
